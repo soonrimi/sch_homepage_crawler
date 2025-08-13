@@ -12,31 +12,32 @@ import java.net.URL;
 import java.util.*;
 import java.util.stream.Collectors;
 
+
 public class WebCrawlerAppTest {
     public static void main(String[] args) throws IOException, URISyntaxException {
-        //csv 파일 읽어와서 읽을 페이지 리스트 가져오기
-        //1. 1일 주기로 가져오는거
-        //2. https://home.sch.ac.kr/mediacomm/03/0101.jsp 여기서 department안따와짐
-        //3. getallpages 완성해서 main에서는 주석처리, 설명
-        List<BoardPage> testPages = Collections.singletonList(
-                new BoardPage("미디어커뮤니케이션학과", "https://home.sch.ac.kr/mediacomm", "대학공지")
-        );
-        PostInfo crawler = new PostInfo();
+        HtmlFetcher htmlFetcher = new HtmlFetcher();
+//        List<String> pageList = Arrays.asList(
+//                "https://homepage.sch.ac.kr/src/05/01.jsp",
+//                "https://homepage.sch.ac.kr/gyomu/06/03.jsp",
+//                "https://library.sch.ac.kr/bbs/list/1",
+////                "http://hrc.sch.ac.kr/notificationList.php",
+//                "https://homepage.sch.ac.kr/edu/06/03.jsp",
+//                "https://home.sch.ac.kr/pharmen/06/0201.jsp",
+//                "https://home.sch.ac.kr/medibio/06/0201.jsp",
+//                "https://home.sch.ac.kr/law/05/01.jsp"
+//        );
+//        for (String page:pageList){
+//            Document doc=htmlFetcher.getHTMLDocument(page);
+//            String combinedSelector=("a.pager, a.pager.next, a.pager.last, a[title*='마지막으로'], a[title*='다음으로'],a[title*='다음'],a[title*='맨뒤'],a[title*='pagego']");
+////        System.out.println(doc);
+//            System.out.println(doc.selectFirst(combinedSelector).attr("abs:href"));
+//        }
 
-        // 테스트 메서드 호출
-        List<BoardPost> dailyPosts = crawler.getAllPosts(testPages);
+        String page=("https://library.sch.ac.kr/bbs/list/1");
+        Document doc=htmlFetcher.getHTMLDocument(page);
+        System.out.println(doc.selectFirst(".listTable tr td a").attr("abs:href"));
 
-        // 결과 출력 및 검증
-        System.out.println("\n===== 테스트 결과 =====");
-        System.out.println("총 발견된 오늘 게시글 수: " + dailyPosts.size());
 
-        if (dailyPosts.size() == 2) {
-            System.out.println("테스트 통과: 오늘 글 2개가 정확하게 발견되었습니다.");
-            dailyPosts.forEach(System.out::println);
-        } else {
-            System.out.println("테스트 실패: 예상치 못한 결과입니다. (발견된 글 수: " + dailyPosts.size() + ")");
-            dailyPosts.forEach(System.out::println);
-        }
 
 
     }
