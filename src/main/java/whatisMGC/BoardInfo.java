@@ -33,7 +33,7 @@ public class BoardInfo {
         List<String> centerNames = List.of("SRC센터(생활관)", "학사팀", "SW중심대학사업단", "원격교육지원센터", "국제교육교류처", "인권센터", "심리건강상담센터", "보건센터", "공학교육혁신센터", "중앙도서관", "향설나눔대학","대학일자리플러스센터(I'Design)","교원양성지원센터","Dream비교과센터");
         List<String> announceNames = List.of("대학공지", "학사공지", "장학공지", "취업정보", "입찰공고");
         List<String> exceptPage = List.of("중앙의료원", "교육혁신원", "수업시간표", "연구실안전관리", "예결산공고", "원격교육지원센터", "평생교육원", "교무처", "학생증", "SCH SDGs", "RGB CAMPUS 사업단", "COVID19공지","多Dream비교과센터","인권센터","교원양성지원센터");
-        //todo 현재 인권센터 알림마당 페이지네이션 불가로 제외함
+        //todo 현재 인권센터, 교원양성지원센터 페이지네이션 불가로 제외함
 
         // 3. 제외 목록(exceptPage)에 있는 링크들을 먼저 필터링
         List<BoardPage> filteredList = allPages.stream()
