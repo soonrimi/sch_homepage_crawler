@@ -1,6 +1,8 @@
 package whatisMGC;
 
+import java.util.List;
 import java.util.Objects;
+
 
 public class BoardPost {
     private String department;
@@ -10,18 +12,18 @@ public class BoardPost {
     private String hits;
     private String absoluteUrl;
     private String content;
-    private String attachment;
+    private List<Attachment> attachments;
 
     // 생성자
-    public BoardPost(String department, String title, String author, String postDate, String hits, String absoluteUrl, String content, String attachment) {
+    public BoardPost(String department, String title, String author, String postDate, String hits, String absoluteUrl, String content, List<Attachment> attachments) {
         this.department = department;
         this.title = title;
         this.author = author;
         this.postDate = postDate;
-        this.hits=hits;
+        this.hits = hits;
         this.absoluteUrl = absoluteUrl;
         this.content = content;
-        this.attachment = attachment;
+        this.attachments = attachments;
     }
 
     // Getter 및 Setter 메서드들
@@ -47,6 +49,7 @@ public class BoardPost {
                 ", postDate='" + postDate + '\'' +
                 ", hits='" + hits + '\'' +
                 ", absoluteUrl='" + absoluteUrl + '\'' +
+                ", attachments=" + attachments +
                 '}';
     }
 
@@ -55,12 +58,15 @@ public class BoardPost {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         BoardPost boardPost = (BoardPost) o;
-        return Objects.equals(absoluteUrl, boardPost.absoluteUrl);
+        // title, author, department가 모두 같을 경우 true 반환
+        return Objects.equals(title, boardPost.title) &&
+                Objects.equals(author, boardPost.author) &&
+                Objects.equals(department, boardPost.department);
     }
-
     @Override
     public int hashCode() {
-        return Objects.hash(absoluteUrl);
+        // title, author, department를 기준으로 해시 코드 생성
+        return Objects.hash(title, author, department);
     }
 
     public String getHits() {
@@ -71,11 +77,11 @@ public class BoardPost {
         this.hits = hits;
     }
 
-    public String getAttachment() {
-        return attachment;
+    public List<Attachment> getAttachments() {
+        return attachments;
     }
 
-    public void setAttachment(String attachment) {
-        this.attachment = attachment;
+    public void setAttachments(List<Attachment> attachments) {
+        this.attachments = attachments;
     }
 }

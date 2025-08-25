@@ -1,11 +1,6 @@
 package whatisMGC;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -74,10 +69,34 @@ public class DBManager {
         }
     }
 
+    /**
+     * 중앙도서관의 '일반공지'와 '학술공지' 데이터를 데이터베이스에 강제로 삽입합니다.
+     * 이 메서드는 주로 애플리케이션 초기 설정 시 사용됩니다.
+     * @param tableName 데이터를 삽입할 소게시판 테이블 이름
+     */
+    public void insertHardcodedLibraryBoards(String tableName) {
+        // ON DUPLICATE KEY UPDATE를 사용하여 이미 데이터가 있어도 오류 없이 URL을 업데이트합니다.
+        String sql = "INSERT INTO " + tableName + " (parent_page_title, boardName, subBoardUrl, page_id) VALUES " +
+                "('중앙도서관', '일반공지', 'https://library.sch.ac.kr/bbs/list/1', 7167)," +
+                "('중앙도서관', '학술공지', 'https://library.sch.ac.kr/bbs/list/2', 7167) " +
+                "ON DUPLICATE KEY UPDATE subBoardUrl = VALUES(subBoardUrl)";
+
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement()) {
+
+            int rowsAffected = stmt.executeUpdate(sql);
+
+        } catch (SQLException e) {
+            System.err.println("오류: 중앙도서관 게시판 정보 삽입 중 데이터베이스 오류가 발생했습니다.");
+            e.printStackTrace();
+        }
+    }
+
+
     private int findBoardPageIdByTitle(String Title) throws SQLException {
         String sql = "SELECT id FROM Board_Pages WHERE UPPER(TRIM(title)) LIKE CONCAT(UPPER(TRIM(?)), '%')";        try (
                 Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, Title);
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
@@ -136,26 +155,103 @@ public class DBManager {
         return existingUrls;
     }
 
-    public void appendPostsToDb(List<BoardPost> newPosts, String tableName) throws SQLException {
-        String sql = "INSERT INTO " + tableName + " (department, title, author, postTime, hits, absoluteUrl, content, attachment) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+    public void appendPostsToDb(List<BoardPost> newPosts, String postTableName) throws SQLException {
+        // 1. BoardPosts 테이블에 게시물 정보를 삽입하는 SQL
+        String postSql = "INSERT INTO " + postTableName + " (department, postTitle, author, postTime, hits, absoluteUrl, content) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        // 2. Attachments 테이블에 첨부파일 정보를 삽입하는 SQL
+        String attachmentSql = "INSERT INTO " + "ATTACHMENTS" + " (post_id, file_name, file_url) VALUES (?, ?, ?)";
+
+        Connection conn = null; // Declare connection outside the try block
+        try {
+            conn = getConnection(); // Initialize connection here
             conn.setAutoCommit(false);
-            for (BoardPost post : newPosts) {
-                if (post == null) continue;
-                pstmt.setString(1, post.getDepartment());
-                pstmt.setString(2, post.getTitle());
-                pstmt.setString(3, post.getAuthor());
-                pstmt.setString(4, post.getpostDate());
-                pstmt.setString(5, post.getHits());
-                pstmt.setString(6, post.getAbsoluteUrl());
-                pstmt.setString(7, post.getContent());
-                pstmt.setString(7, post.getAttachment());
-                pstmt.addBatch();
+
+            // Check and add missing columns
+            DatabaseMetaData meta = conn.getMetaData();
+            String[] columnsToCheck = {"department", "title", "author", "postTime", "hits", "absoluteUrl", "content"};
+            for (String columnName : columnsToCheck) {
+                try (ResultSet colRs = meta.getColumns(null, null, postTableName, columnName)) {
+                    if (!colRs.next()) {
+                        String alterSql = "ALTER TABLE " + postTableName + " ADD COLUMN " + columnName + " VARCHAR(255)";
+                        try (Statement stmt = conn.createStatement()) {
+                            stmt.executeUpdate(alterSql);
+                        }
+                    }
+                }
             }
-            pstmt.executeBatch();
+
+            try (PreparedStatement postPstmt = conn.prepareStatement(postSql, Statement.RETURN_GENERATED_KEYS);
+                 PreparedStatement attachmentPstmt = conn.prepareStatement(attachmentSql)) {
+
+                for (BoardPost post : newPosts) {
+                    if (post == null) continue;
+
+                    postPstmt.setString(1, post.getDepartment());
+                    postPstmt.setString(2, post.getTitle());
+                    postPstmt.setString(3, post.getAuthor());
+                    postPstmt.setString(4, post.getpostDate());
+                    postPstmt.setString(5, post.getHits());
+                    postPstmt.setString(6, post.getAbsoluteUrl());
+                    postPstmt.setString(7, post.getContent());
+                    postPstmt.executeUpdate();
+
+                    int postId;
+                    try (ResultSet rs = postPstmt.getGeneratedKeys()) {
+                        if (rs.next()) {
+                            postId = rs.getInt(1);
+                        } else {
+                            continue;
+                        }
+                    }
+
+                    for (Attachment attachment : post.getAttachments()) {
+                        attachmentPstmt.setInt(1, postId);
+                        attachmentPstmt.setString(2, attachment.getFileName());
+                        attachmentPstmt.setString(3, attachment.getFileUrl());
+                        attachmentPstmt.addBatch();
+                    }
+                }
+
+                attachmentPstmt.executeBatch();
+            }
+
             conn.commit();
-            System.out.printf("%d개의 게시물이 데이터베이스에 성공적으로 저장되었습니다.\n", newPosts.size());
+
+        } catch (SQLException e) {
+            if (conn != null) { // 롤백하기 전 연결 여부 확인
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackEx) {
+                    System.err.println("롤백실패: " + rollbackEx.getMessage());
+                }
+            }
+            System.err.println("데이터베이스 작업 중 오류 발생: " + e.getMessage());
+            throw e;
+
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.close();
+                } catch (SQLException closeEx) {
+                    System.err.println("연결 실패: " + closeEx.getMessage());
+                }
+            }
         }
+    }
+    public Set<String> loadExistingPostKeysFromDb(String tableName) throws SQLException {
+        Set<String> existingKeys = new HashSet<>();
+        // department가 NULL일 경우를 대비하여 IFNULL 함수 사용
+        String sql = "SELECT absoluteUrl, IFNULL(department, '') as department FROM " + tableName;
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                String url = rs.getString("absoluteUrl");
+                String department = rs.getString("department");
+                // URL과 학과를 구분자 '|'로 합쳐 고유 키 생성
+                existingKeys.add(url + "|" + department);
+            }
+        }
+        return existingKeys;
     }
 }

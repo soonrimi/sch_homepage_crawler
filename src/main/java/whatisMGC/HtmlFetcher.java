@@ -13,7 +13,7 @@ public class HtmlFetcher {
 //url을 받아 접속, 해당 url의 html 문서 가져오기
     public Document getHTMLDocument(String url) {
         try{
-            Connection.Response response =  Jsoup.connect(url).timeout(10000).execute();
+            Connection.Response response =  Jsoup.connect(url).timeout(30 * 1000).execute();
             return Jsoup.parse(response.body(), url);
 
         } catch (IOException e) {

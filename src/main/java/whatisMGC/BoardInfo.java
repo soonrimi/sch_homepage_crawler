@@ -14,10 +14,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class BoardInfo {
-    // 필드는 클래스 상단에 모아서 선언하는 것이 좋습니다.
     private final HtmlFetcher htmlFetcher = new HtmlFetcher();
-
-
 
     // ----------------------------------------------------------------------
     // 웹사이트 메인 페이지에서 게시판 링크를 추출하고 카테고리를 설정하는 메서드
@@ -32,15 +29,17 @@ public class BoardInfo {
         // 2. 카테고리 분류를 위한 이름 리스트를 정의합니다.
         List<String> centerNames = List.of("SRC센터(생활관)", "학사팀", "SW중심대학사업단", "원격교육지원센터", "국제교육교류처", "인권센터", "심리건강상담센터", "보건센터", "공학교육혁신센터", "중앙도서관", "향설나눔대학","대학일자리플러스센터(I'Design)","교원양성지원센터","Dream비교과센터");
         List<String> announceNames = List.of("대학공지", "학사공지", "장학공지", "취업정보", "입찰공고");
-        List<String> exceptPage = List.of("중앙의료원", "교육혁신원", "수업시간표", "연구실안전관리", "예결산공고", "원격교육지원센터", "평생교육원", "교무처", "학생증", "SCH SDGs", "RGB CAMPUS 사업단", "COVID19공지","多Dream비교과센터","인권센터","교원양성지원센터");
+        List<String> exceptPage = List.of("중앙의료원", "교육혁신원", "수업시간표", "연구실안전관리", "예결산공고", "원격교육지원센터", "평생교육원", "교무처", "학생증", "SCH SDGs", "RGB CAMPUS 사업단", "COVID19공지","多Dream비교과센터","인권센터","교원양성지원센터, 도서관");
         //todo 현재 인권센터, 교원양성지원센터 페이지네이션 불가로 제외함
 
         // 3. 제외 목록(exceptPage)에 있는 링크들을 먼저 필터링
         List<BoardPage> filteredList = allPages.stream()
                 .filter(page -> exceptPage.stream().noneMatch(name -> page.getTitle().contains(name)))
+                .filter(page -> !page.getAbsoluteUrl().contains("?"))
+                .filter(page -> exceptPage.stream().noneMatch(name -> page.getTitle().contains(name)))
                 .collect(Collectors.toList());
 
-        List<BoardPage> categorizedList = filteredList.stream()
+        List<BoardPage> subpageList = filteredList.stream()
                 .map(page -> {
                     String category = "학과"; // 기본 카테고리
                     if (centerNames.stream().anyMatch(name -> page.getTitle().contains(name))) {
@@ -51,11 +50,12 @@ public class BoardInfo {
                     if (page.getTitle().contains("국제교육교류처")) {page.setAbsoluteUrl("http://sgee.sch.ac.kr/main/kor_main.php");}
                     else if(page.getTitle().contains("I'Design")){page.setAbsoluteUrl("http://id.sch.ac.kr/Main/Default.aspx");}
                     else if(page.getTitle().contains("생활관")){page.setAbsoluteUrl("https://homepage.sch.ac.kr/src");}
+                    else if(page.getTitle().contains("도서관")){page.setAbsoluteUrl("https://library.sch.ac.kr/bbs/list/3");}
                     return new BoardPage(page.getTitle(), page.getBoardName(), page.getAbsoluteUrl(), category);
                 })
                 .collect(Collectors.toList());
 
-        return categorizedList;
+        return subpageList;
     }
 
     // ----------------------------------------------------------------------
@@ -88,6 +88,8 @@ public class BoardInfo {
             combinedSelector = "a:contains(공지사항), a:contains(자유게시판)";
         }else if (parentPage.getTitle().contains("의료IT공학과")) {
             combinedSelector = "a:contains(공지사항), a:contains(자유게시판)";
+        }else if (parentPage.getTitle().contains("도서관")) {
+            combinedSelector = "a:contains(일반공지), a:contains(학술공지), a:contains(교육/행사공지)";
         }
 
         Elements links = parentDoc.select(combinedSelector);
@@ -96,12 +98,19 @@ public class BoardInfo {
 
         for (Element link : links) {
             String boardName = link.text().trim();
+            String subBoardUrl = link.attr("abs:href");
+
+            if (subBoardUrl.contains("mode=view") || subBoardUrl.contains("article_no=")) {
+                continue;
+            }
+
             if(boardName.contains("더보기")){
                 continue;
             }else if(boardName.contains("-")){
                 boardName=boardName.split(" ")[1];
+            }else if (subBoardUrl.contains("#")) {
+                continue;
             }
-            String subBoardUrl = link.attr("abs:href");
             if (!subBoardUrl.isEmpty()) {
                 foundBoards.add(new BoardPage(parentPage.getTitle(), boardName, subBoardUrl, parentPage.getCategory()));
             }
