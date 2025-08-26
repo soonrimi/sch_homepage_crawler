@@ -1,22 +1,27 @@
 package whatisMGC;
 
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.Comparator;
-import java.util.Collections;
+import java.util.*;
 
 public class DBManager {
-    // MySQL 접속 정보는 실제 사용 환경에 맞게 수정하세요.
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/crawler?useSSL=false&serverTimezone=UTC";
-    private static final String USER = "root";
-    private static final String PASS = "root";
+    private static final String DB_URL;
+    private static final String DB_USER;
+    private static final String DB_PASS;
+
+    static {
+        DB_URL = DBConfig.DB_URL;
+        DB_USER = DBConfig.DB_USER;
+        DB_PASS = DBConfig.DB_PASSWORD;
+    }
 
     private Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(DB_URL, USER, PASS);
+        return DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
     }
+
 //----------------------------------------------------------------------------------------------------------------------
     /**
      * 최초 실행 시, 게시판 목록을 데이터베이스에 저장합니다.
