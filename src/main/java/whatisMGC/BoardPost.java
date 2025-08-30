@@ -1,23 +1,31 @@
 package whatisMGC;
 
+import java.util.List;
 import java.util.Objects;
+
 
 public class BoardPost {
     private String department;
     private String title;
     private String author;
-    private String postTime;
+    private String postDate;
+    private String hits;
     private String absoluteUrl;
     private String content;
+    private List<Attachment> attachments;
+    private Long categoryId;
 
     // 생성자
-    public BoardPost(String department, String title, String author, String postTime, String absoluteUrl, String content) {
+    public BoardPost(String department, String title, String author, String postDate, String hits, String absoluteUrl, String content, List<Attachment> attachments, Long categoryId) {
         this.department = department;
         this.title = title;
         this.author = author;
-        this.postTime = postTime;
+        this.postDate = postDate;
+        this.hits = hits;
         this.absoluteUrl = absoluteUrl;
         this.content = content;
+        this.attachments = attachments;
+        this.categoryId = categoryId;
     }
 
     // Getter 및 Setter 메서드들
@@ -27,12 +35,14 @@ public class BoardPost {
     public void setTitle(String title) { this.title = title; }
     public String getAuthor() { return author; }
     public void setAuthor(String author) { this.author = author; }
-    public String getPostTime() { return postTime; }
-    public void setPostTime(String postTime) { this.postTime = postTime; }
+    public String getpostDate() { return postDate; }
+    public void setpostDate(String postTime) { this.postDate = postDate; }
     public String getAbsoluteUrl() { return absoluteUrl; }
     public void setAbsoluteUrl(String absoluteUrl) { this.absoluteUrl = absoluteUrl; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
+    public Long getCategoryId() { return categoryId; }
+    public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }
 
     @Override
     public String toString() {
@@ -40,8 +50,11 @@ public class BoardPost {
                 "department='" + department + '\'' +
                 ", title='" + title + '\'' +
                 ", author='" + author + '\'' +
-                ", postTime='" + postTime + '\'' +
+                ", postDate='" + postDate + '\'' +
+                ", hits='" + hits + '\'' +
                 ", absoluteUrl='" + absoluteUrl + '\'' +
+                ", attachments=" + attachments + '\'' +
+                ", categoryId=" + categoryId + '\'' +
                 '}';
     }
 
@@ -50,11 +63,30 @@ public class BoardPost {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         BoardPost boardPost = (BoardPost) o;
-        return Objects.equals(absoluteUrl, boardPost.absoluteUrl);
+        // title, author, department가 모두 같을 경우 true 반환
+        return Objects.equals(title, boardPost.title) &&
+                Objects.equals(author, boardPost.author) &&
+                Objects.equals(department, boardPost.department);
     }
-
     @Override
     public int hashCode() {
-        return Objects.hash(absoluteUrl);
+        // title, author, department를 기준으로 해시 코드 생성
+        return Objects.hash(title, author, department);
+    }
+
+    public String getHits() {
+        return hits;
+    }
+
+    public void setHits(String hits) {
+        this.hits = hits;
+    }
+
+    public List<Attachment> getAttachments() {
+        return attachments;
+    }
+
+    public void setAttachments(List<Attachment> attachments) {
+        this.attachments = attachments;
     }
 }

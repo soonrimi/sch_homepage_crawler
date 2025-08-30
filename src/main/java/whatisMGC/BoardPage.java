@@ -7,24 +7,34 @@ public class
 BoardPage {
 
         private String title;
+        private String boardName;
         private String absoluteUrl;
-        private String categorize;
+        private String category;
 
-        public BoardPage(String title, String absoluteUrl, String categorize) {
+        public BoardPage(String title, String absoluteUrl, String category) {
             this.title = title;
+            this.boardName=null;
             this.absoluteUrl = absoluteUrl;
-            this.categorize=categorize;
+            this.category=category;
+        }
+        public BoardPage(String title, String boardName,String absoluteUrl, String category) {
+            this.title = title;
+            this.boardName=boardName;
+            this.absoluteUrl = absoluteUrl;
+            this.category=category;
         }
 
 
         // Getter 및 Setter 메서드들
         public String getTitle() { return title; }
         public String getAbsoluteUrl() { return absoluteUrl; }
-        public String getCategorize() { return categorize; }
+        public String getCategory() { return category; }
+        public String getBoardName() { return boardName; }
 
         public void setTitle(String title) { this.title = title; }
         public void setAbsoluteUrl(String absoluteUrl) { this.absoluteUrl = absoluteUrl; }
-        public void setCategorize(String categorize) { this.categorize = categorize; }
+        public void setCategory(String category) { this.category = category; }
+        public String setBoardName() { return boardName; }
         public static List<BoardPage> mergePages(List<BoardPage> announceBoardPages, List<BoardPage> majorPage, List<BoardPage> centerPage) {
             Set<BoardPage> Pages = new HashSet<>(); //중복제거
 
@@ -40,6 +50,17 @@ BoardPage {
 
             return new ArrayList<>(Pages);
         }
+        public static List<BoardPage> add(List<BoardPage> pages, List<BoardPage> newPages){
+            for(BoardPage page:pages){
+                for ( BoardPage newpage:newPages){
+                    if(page.getAbsoluteUrl().equals(newpage.getAbsoluteUrl())){
+                        newPages.remove(newpage);
+                    }
+                }
+            }
+            pages.addAll(newPages);
+            return pages;
+        }
         public static String getTitleByPages(List<BoardPage> boardPages, String url) {
             for (BoardPage boardPage : boardPages) {
                 if (boardPage.getAbsoluteUrl().equals(url)) {
@@ -53,8 +74,9 @@ BoardPage {
         public String toString() {
             return "BoardPage{" +
                     "title='" + title + '\'' +
+                    ", boardName='" + boardName + '\'' +
                     ", absoluteUrl='" + absoluteUrl + '\'' +
-                    ", categorize='" + categorize + '\'' +
+                    ", category='" + category + '\'' +
                     '}';
         }
 
@@ -72,5 +94,6 @@ BoardPage {
         }
 
 
-    }
+
+}
 
