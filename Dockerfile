@@ -7,8 +7,8 @@ COPY build.gradle.kts settings.gradle.kts gradlew ./
 COPY gradle ./gradle
 COPY src ./src
 
-# Gradle wrapper에 실행 권한 부여 및 빌드 실행
-RUN chmod +x gradlew && ./gradlew build -x test
+# Gradle wrapper에 실행 권한 부여 및 fat jar 빌드 실행
+RUN chmod +x gradlew && ./gradlew shadowJar
 
 # 실행용 경량 이미지
 FROM eclipse-temurin:17-jre
