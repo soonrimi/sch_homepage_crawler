@@ -31,7 +31,7 @@ public class DBManager {
      * @throws SQLException 데이터베이스 연결 또는 쿼리 실행 오류 발생 시
      */
     public void saveInitialBoardPages(List<BoardPage> pages, String tableName) throws SQLException {
-        String sql = "INSERT INTO " + tableName + " (title, absoluteUrl, category) VALUES (?, ?, ?) " +
+        String sql = "INSERT INTO " + tableName + " (title, absolute_url, category) VALUES (?, ?, ?) " +
                 "ON DUPLICATE KEY UPDATE title = VALUES(title), category = VALUES(category)";
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -50,8 +50,8 @@ public class DBManager {
     }
     //----------------------------------------------------------------------------------------------------------------------
     public void saveSubBoards(List<BoardPage> subBoards, String tableName, BoardPage parentPage) throws SQLException {
-        String sql = "INSERT INTO " + tableName + " (parent_page_title, boardName, subBoardUrl, page_id) VALUES (?, ?, ?, ?) "
-                + "ON DUPLICATE KEY UPDATE subBoardUrl = VALUES(subBoardUrl)";
+        String sql = "INSERT INTO " + tableName + " (parent_page_title, board_name, sub_board_url, page_id) VALUES (?, ?, ?, ?) "
+                + "ON DUPLICATE KEY UPDATE sub_board_url = VALUES(sub_board_url)";
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             conn.setAutoCommit(false);
@@ -81,11 +81,11 @@ public class DBManager {
      */
     public void insertHardcodedLibraryBoards(String tableName) {
         // ON DUPLICATE KEY UPDATE를 사용하여 이미 데이터가 있어도 오류 없이 URL을 업데이트합니다.
-        String sql = "INSERT INTO " + tableName + " (parent_page_title, boardName, subBoardUrl, page_id) VALUES " +
+        String sql = "INSERT INTO " + tableName + " (parent_page_title, board_name, sub_board_url, page_id) VALUES " +
                 "('중앙도서관', '일반공지', 'https://library.sch.ac.kr/bbs/list/1', 7167)," +
                 "('중앙도서관', '학술공지', 'https://library.sch.ac.kr/bbs/list/2', 7167), " +
                 "('중앙도서관', '교육/행사공지', 'https://library.sch.ac.kr/bbs/list/3', 7167) " +
-                "ON DUPLICATE KEY UPDATE subBoardUrl = VALUES(subBoardUrl)";
+                "ON DUPLICATE KEY UPDATE sub_board_url = VALUES(sub_board_url)";
 
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
@@ -115,16 +115,16 @@ public class DBManager {
 
     public List<BoardPage> loadMainBoardPagesFromDb(String tableName) throws SQLException {
         List<BoardPage> boardPages = new ArrayList<>();
-        String sql = "SELECT id, title, absoluteUrl, category FROM " + tableName;
+        String sql = "SELECT id, title, absolute_url, category FROM " + tableName;
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
                 String title = rs.getString("title");
-                String absoluteUrl = rs.getString("absoluteUrl");
+                String absolute_url = rs.getString("absolute_url");
                 String category = rs.getString("category");
-                boardPages.add(new BoardPage(title, null, absoluteUrl, category));
+                boardPages.add(new BoardPage(title, null, absolute_url, category));
             }
         }
         return boardPages;
@@ -132,17 +132,17 @@ public class DBManager {
 
     public List<BoardPage> loadSubBoardPagesFromDb(String tableName) throws SQLException {
         List<BoardPage> subBoards = new ArrayList<>();
-        String sql = "SELECT B.title, S.boardName, S.subBoardUrl AS absoluteUrl, B.category " +
+        String sql = "SELECT B.title, S.board_name, S.sub_board_url AS absolute_url, B.category " +
                 "FROM crawl_pages AS B JOIN " + tableName + " AS S ON B.id = S.page_id";
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
                 String title = rs.getString("title");
-                String boardName = rs.getString("boardName");
-                String absoluteUrl = rs.getString("absoluteUrl");
+                String board_name = rs.getString("board_name");
+                String absolute_url = rs.getString("absolute_url");
                 String category = rs.getString("category");
-                subBoards.add(new BoardPage(title, boardName, absoluteUrl, category));
+                subBoards.add(new BoardPage(title, board_name, absolute_url, category));
             }
         }
         return subBoards;
@@ -150,12 +150,12 @@ public class DBManager {
 
     public Set<String> loadExistingPostUrlsFromDb(String tableName) throws SQLException {
         Set<String> existingUrls = new HashSet<>();
-        String sql = "SELECT externalSourceUrl FROM " + tableName;
+        String sql = "SELECT external_source_url FROM " + tableName;
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
-                existingUrls.add(rs.getString("externalSourceUrl"));
+                existingUrls.add(rs.getString("external_source_url"));
             }
         }
         return existingUrls;
@@ -163,7 +163,7 @@ public class DBManager {
 
     public void appendPostsToDb(List<BoardPost> newPosts, String postTableName) throws SQLException {
         // 1. BoardPosts 테이블에 게시물 정보를 삽입하는 SQL
-        String postSql = "INSERT INTO " + postTableName + " (source, title, writer, postTime, viewCount, externalSourceUrl, content, categoryId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String postSql = "INSERT INTO " + postTableName + " (source, title, writer, post_time, view_count, external_source_url, content, category_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         // 2. Attachments 테이블에 첨부파일 정보를 삽입하는 SQL
         String attachmentSql = "INSERT INTO " + "crawl_attachments" + " (post_id, file_name, file_url) VALUES (?, ?, ?)";
 
@@ -174,7 +174,7 @@ public class DBManager {
 
             // Check and add missing columns
             DatabaseMetaData meta = conn.getMetaData();
-            String[] columnsToCheck = {"source", "title", "writer", "postTime", "viewCount", "externalSourceUrl", "content", "categoryId"};
+            String[] columnsToCheck = {"source", "title", "writer", "post_time", "view_count", "external_source_url", "content", "category_id"};
             for (String columnName : columnsToCheck) {
                 try (ResultSet colRs = meta.getColumns(null, null, postTableName, columnName)) {
                     if (!colRs.next()) {
@@ -248,12 +248,12 @@ public class DBManager {
     public Set<String> loadExistingPostKeysFromDb(String tableName) throws SQLException {
         Set<String> existingKeys = new HashSet<>();
         // department가 NULL일 경우를 대비하여 IFNULL 함수 사용
-        String sql = "SELECT externalSourceUrl, IFNULL(source, '') as source FROM " + tableName;
+        String sql = "SELECT external_source_url, IFNULL(source, '') as source FROM " + tableName;
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
-                String url = rs.getString("externalSourceUrl");
+                String url = rs.getString("external_source_url");
                 String source = rs.getString("source");
                 // URL과 학과를 구분자 '|'로 합쳐 고유 키 생성
                 existingKeys.add(url + "|" + source);
