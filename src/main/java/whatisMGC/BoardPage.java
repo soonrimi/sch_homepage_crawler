@@ -7,34 +7,34 @@ public class
 BoardPage {
 
         private String title;
-        private String boardName;
-        private String absoluteUrl;
+        private String board_name;
+        private String absolute_url;
         private String category;
 
-        public BoardPage(String title, String absoluteUrl, String category) {
+        public BoardPage(String title, String absolute_url, String category) {
             this.title = title;
-            this.boardName=null;
-            this.absoluteUrl = absoluteUrl;
+            this.board_name=null;
+            this.absolute_url = absolute_url;
             this.category=category;
         }
-        public BoardPage(String title, String boardName,String absoluteUrl, String category) {
+        public BoardPage(String title, String board_name,String absolute_url, String category) {
             this.title = title;
-            this.boardName=boardName;
-            this.absoluteUrl = absoluteUrl;
+            this.board_name=board_name;
+            this.absolute_url = absolute_url;
             this.category=category;
         }
 
 
         // Getter 및 Setter 메서드들
         public String getTitle() { return title; }
-        public String getAbsoluteUrl() { return absoluteUrl; }
+        public String getAbsoluteUrl() { return absolute_url; }
         public String getCategory() { return category; }
-        public String getBoardName() { return boardName; }
+        public String getBoardName() { return board_name; }
 
         public void setTitle(String title) { this.title = title; }
-        public void setAbsoluteUrl(String absoluteUrl) { this.absoluteUrl = absoluteUrl; }
+        public void setAbsoluteUrl(String absolute_url) { this.absolute_url = absolute_url; }
         public void setCategory(String category) { this.category = category; }
-        public String setBoardName() { return boardName; }
+        public String setBoardName() { return board_name; }
         public static List<BoardPage> mergePages(List<BoardPage> announceBoardPages, List<BoardPage> majorPage, List<BoardPage> centerPage) {
             Set<BoardPage> Pages = new HashSet<>(); //중복제거
 
@@ -74,8 +74,8 @@ BoardPage {
         public String toString() {
             return "BoardPage{" +
                     "title='" + title + '\'' +
-                    ", boardName='" + boardName + '\'' +
-                    ", absoluteUrl='" + absoluteUrl + '\'' +
+                    ", boardName='" + board_name + '\'' +
+                    ", absoluteUrl='" + absolute_url + '\'' +
                     ", category='" + category + '\'' +
                     '}';
         }
@@ -85,12 +85,12 @@ BoardPage {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             BoardPage boardPage = (BoardPage) o;
-            return Objects.equals(absoluteUrl, boardPage.absoluteUrl);
+            return Objects.equals(absolute_url, boardPage.absolute_url);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(absoluteUrl);
+            return Objects.hash(absolute_url);
         }
 
 
