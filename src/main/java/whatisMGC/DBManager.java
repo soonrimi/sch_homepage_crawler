@@ -165,7 +165,7 @@ public class DBManager {
         // 1. BoardPosts 테이블에 게시물 정보를 삽입하는 SQL
         String postSql = "INSERT INTO " + postTableName + " (source, title, writer, postTime, viewCount, externalSourceUrl, content, categoryId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         // 2. Attachments 테이블에 첨부파일 정보를 삽입하는 SQL
-        String attachmentSql = "INSERT INTO " + "ATTACHMENTS" + " (post_id, file_name, file_url) VALUES (?, ?, ?)";
+        String attachmentSql = "INSERT INTO " + "crawl_attachments" + " (post_id, file_name, file_url) VALUES (?, ?, ?)";
 
         Connection conn = null; // Declare connection outside the try block
         try {
