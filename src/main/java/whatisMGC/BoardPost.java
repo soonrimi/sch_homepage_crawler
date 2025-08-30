@@ -13,9 +13,10 @@ public class BoardPost {
     private String absoluteUrl;
     private String content;
     private List<Attachment> attachments;
+    private Long categoryId;
 
     // 생성자
-    public BoardPost(String department, String title, String author, String postDate, String hits, String absoluteUrl, String content, List<Attachment> attachments) {
+    public BoardPost(String department, String title, String author, String postDate, String hits, String absoluteUrl, String content, List<Attachment> attachments, Long categoryId) {
         this.department = department;
         this.title = title;
         this.author = author;
@@ -24,6 +25,7 @@ public class BoardPost {
         this.absoluteUrl = absoluteUrl;
         this.content = content;
         this.attachments = attachments;
+        this.categoryId = categoryId;
     }
 
     // Getter 및 Setter 메서드들
@@ -39,6 +41,8 @@ public class BoardPost {
     public void setAbsoluteUrl(String absoluteUrl) { this.absoluteUrl = absoluteUrl; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
+    public Long getCategoryId() { return categoryId; }
+    public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }
 
     @Override
     public String toString() {
@@ -49,7 +53,8 @@ public class BoardPost {
                 ", postDate='" + postDate + '\'' +
                 ", hits='" + hits + '\'' +
                 ", absoluteUrl='" + absoluteUrl + '\'' +
-                ", attachments=" + attachments +
+                ", attachments=" + attachments + '\'' +
+                ", categoryId=" + categoryId + '\'' +
                 '}';
     }
 

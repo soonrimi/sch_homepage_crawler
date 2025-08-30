@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  soonrimi-app:
+    build: .
+    image: soonrimi-be:latest
+    container_name: soonrimi-be
+    ports:
+      - "7100:7100"
+    env_file:
+      - .env
+    restart: unless-stopped
+    network_mode: "host" # 로컬 DB 접근을 위해 host 네트워크 사용

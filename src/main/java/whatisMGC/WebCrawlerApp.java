@@ -11,17 +11,12 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class WebCrawlerApp {
-    private static final String POSTS_TABLE_NAME = "board_posts";
-    private static final String SUB_BOARDS_TABLE_NAME = "sub_boards";
-    private static final String MAIN_BOARDS_TABLE_NAME = "board_pages";
+    private static final String POSTS_TABLE_NAME = "crawl_posts";
+    private static final String SUB_BOARDS_TABLE_NAME = "sub_crawl_pages";
+    private static final String MAIN_BOARDS_TABLE_NAME = "crawl_pages";
     private static final String BASE_URL = "https://home.sch.ac.kr/sch/index.jsp";
 
     public static void main(String[] args) throws IOException, URISyntaxException, SQLException {
-        // --- 0단계: 사용자 입력(모드) 확인 ---
-        Scanner scanner = new Scanner(System.in);
-        System.out.println("크롤링 모드를 입력해주세요. (all, today):");
-        String mode = scanner.nextLine().toLowerCase(); // 입력을 받아 소문자로 변환
-        scanner.close(); // 스캐너 리소스 정리
 
         DBManager dbManager = new DBManager();
         PostInfo postInfo = new PostInfo();
@@ -57,16 +52,8 @@ public class WebCrawlerApp {
 
         List<BoardPost> crawledPosts; // 크롤링 결과를 담을 리스트
 
-        if ("all".equals(mode)) {
-            System.out.println(">> 'all' 모드로 2024년 이후 모든 게시물을 수집합니다.");
+
             crawledPosts = postInfo.getAllPosts(subBoardsFromDb);
-        } else if ("today".equals(mode)) {
-            System.out.println(">> 'today' 모드로 오늘 게시물만 수집합니다.");
-            crawledPosts = postInfo.getDailyPosts(subBoardsFromDb);
-        } else {
-            System.out.println("오류: 잘못된 모드입니다. 'all' 또는 'today'를 사용해주세요.");
-            return; // 잘못된 모드 입력 시 프로그램 종료
-        }
 
         System.out.printf("크롤링된 게시물 총 %d개를 찾았습니다.\n", crawledPosts.size());
 
