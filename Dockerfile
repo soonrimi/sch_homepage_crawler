@@ -18,6 +18,9 @@ WORKDIR /app
 # 빌드된 JAR 파일 복사
 COPY --from=builder /app/build/libs/*.jar app.jar
 
+# .env 파일 복사
+COPY .env .env
+
 # 애플리케이션 실행
 EXPOSE 7100
 ENTRYPOINT ["java", "-jar", "app.jar"]
