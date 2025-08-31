@@ -22,5 +22,4 @@ COPY --from=builder /app/build/libs/*.jar app.jar
 COPY .env .env
 
 # 애플리케이션 실행
-EXPOSE 7100
 ENTRYPOINT ["java", "-jar", "app.jar"]
