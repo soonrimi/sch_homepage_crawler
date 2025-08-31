@@ -1,7 +1,5 @@
 package whatisMGC;
 
-import org.jsoup.Connection;
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -296,18 +294,11 @@ public class PostInfo {
                             postdate = parts[0];
                         }
                     }
-
                     //  조회수
-                    Element hitsElement = postDoc.selectFirst(posthitsSelector);
-                    if (hitsElement != null) {
-                        String hitsText = hitsElement.text().trim();
-                        String[] parts = hitsText.split(":", 2);
-                        if (parts.length > 1) {
-                            hits = parts[1].trim();
-                        } else {
-                            hits = parts[0];
-                        }
-                    }
+
+                    int hitInt = parseHits(postDoc, posthitsSelector);
+                    hits = String.valueOf(hitInt);
+
                 }
 
                 String content = postDoc.select(".board_contents > div.sch_link_target").text();
@@ -374,6 +365,56 @@ public class PostInfo {
             }
         }
             return postsOnPage;
+    }
+    private int parseHits(Document doc, String posthitsSelector) {
+        // 1. 첫 번째 CSS 선택자로 시도
+        String primarySelector = posthitsSelector;
+        Optional<Integer> hits = tryParseWithSelector(doc, primarySelector);
+
+        // 2. 첫 번째 방법이 실패하면, 두 번째 선택자로 시도
+        if (hits.isPresent()) {
+            return hits.get();
+        } else {
+            String fallbackSelector = ".board_title > ul > li:nth-child(3), .type_board > tbody > tr > td:nth-child(5)";
+            return tryParseWithSelector(doc, fallbackSelector).orElse(-1);
+        }
+    }
+
+    /**
+     * 특정 CSS 선택자를 사용해 엘리먼트를 찾고, 텍스트를 파싱하여 숫자로 변환합니다.
+     * @param doc 파싱할 Jsoup Document 객체
+     * @param selector 사용할 CSS 선택자
+     * @return 성공 시 Optional<Integer>, 엘리먼트가 없거나 파싱 실패 시 Optional.empty()
+     */
+    private Optional<Integer> tryParseWithSelector(Document doc, String selector) {
+        return Optional.ofNullable(doc.selectFirst(selector))
+                .map(element -> {
+                    String text = element.text().trim();
+                    return text;
+                })
+                .map(text -> {
+                    String[] parts = text.split(":", 2);
+                    String numberPart = (parts.length > 1 ? parts[1] : parts[0]).trim();
+                    return numberPart;
+                })
+                .map(rawNumber -> {
+                    String digits = rawNumber.replaceAll("[^0-9]", "");
+                    return digits;
+                })
+                .filter(digits -> {
+                    if (digits.isEmpty()) {
+                        return false;
+                    }
+                    return true;
+                })
+                .flatMap(this::safelyParseInt);
+    }
+    private Optional<Integer> safelyParseInt(String numberString) {
+        try {
+            return Optional.of(Integer.parseInt(numberString));
+        } catch (NumberFormatException e) {
+            return Optional.empty();
+        }
     }
 
 }
