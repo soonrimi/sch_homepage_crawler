@@ -35,7 +35,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           source: "sch_board_crawler-all.jar,docker-compose.yml,.env"
-          target: "/home/${{ secrets.SERVER_USER }}sch_board_crawler/"
+          target: "/home/${{ secrets.SERVER_USER }}/sch_board_crawler/"
 
       - name: Deploy on server
         uses: appleboy/ssh-action@v1.0.3
