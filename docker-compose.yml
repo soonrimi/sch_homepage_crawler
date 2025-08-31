@@ -3,10 +3,8 @@ version: "3.8"
 services:
   soonrimi-app:
     build: .
-    image: soonrimi-be:latest
-    container_name: soonrimi-be
-    ports:
-      - "7100:7100"
+    image: sch_board_crawler:latest
+    container_name: sch_board_crawler
     env_file:
       - .env
     restart: unless-stopped
