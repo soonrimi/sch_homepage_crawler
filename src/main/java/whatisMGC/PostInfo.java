@@ -7,7 +7,11 @@ import org.jsoup.select.Elements;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
@@ -66,13 +70,14 @@ public class PostInfo {
                     }
 
                     for (BoardPost post : postsOnPage) {
-                        LocalDate postDate = parseToLocalDate(post.getpostDate());
+                        Timestamp timestamp = post.getpostDate();
 
-                        if (postDate == null) {
+                        if (timestamp == null) {
                             continue;
                         }
 
-                        // 목표 날짜(2024-01-01) 이전의 글을 만나면,
+                        LocalDate postDate = timestamp.toLocalDateTime().toLocalDate();
+
                         if (postDate.isBefore(startDate)) {
                             System.out.println(startDate + " 이전 게시물(" + post.getpostDate() + ")을 발견하여 이 게시판의 탐색을 중단합니다.");
                             stopCrawlingThisBoard = true;
@@ -137,27 +142,25 @@ public class PostInfo {
                 while (!stopCrawling) {
                     List<BoardPost> postsOnPage = scrapePostDetailFromBoard(currentDoc, pageList);
 
-                    stopCrawling = true; // 기본적으로 중단으로 설정, 오늘 게시물이 있으면 false로 변경
+                    stopCrawling = true;
 
                     for (BoardPost post : postsOnPage) {
-                        try {
-                            LocalDate postDate = parseToLocalDate(post.getpostDate());
+                        Timestamp timestamp = post.getpostDate();
 
-                            if (postDate == null) {
-                                continue;
-                            }
-
-                            if (postDate.isEqual(today)) {
-                                if (seen.add(post)) {
-                                    dailyPosts.add(post);
-                                }
-                                stopCrawling = false; // 오늘 게시물이 있으므로 계속 진행
-                            } else if (postDate.isBefore(today)) {
-                                stopCrawling = true;
-                                break;
-                            }
-                        } catch (Exception e) {
+                        if (timestamp == null) {
                             continue;
+                        }
+
+                        LocalDate postDate = timestamp.toLocalDateTime().toLocalDate();
+
+                        if (postDate.isEqual(today)) {
+                            if (seen.add(post)) {
+                                dailyPosts.add(post);
+                            }
+                            stopCrawling = false;
+                        } else if (postDate.isBefore(today)) {
+                            stopCrawling = true;
+                            break;
                         }
                     }
 
@@ -294,9 +297,11 @@ public class PostInfo {
                             postdate = parts[0];
                         }
                     }
+
                     //  조회수
 
                     int hitInt = parseHits(postDoc, posthitsSelector);
+
                     hits = String.valueOf(hitInt);
 
                 }
@@ -349,7 +354,16 @@ public class PostInfo {
 
                     continue;
                 }
+                // Timestamp를 LocalDateTime으로 변환합니다.
+                LocalDateTime localDateTime = Timestamp.from(Instant.now()).toLocalDateTime();
 
+                // (1-1) LocalTime 객체로 시간 정보만 추출하기
+                LocalTime localTime = localDateTime.toLocalTime();
+
+                // (1-2) 원하는 형식의 시간 문자열로 추출하기 (HH:mm:ss)
+                DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+                String formattedTime = localDateTime.format(timeFormatter);
+                Timestamp created_at = Timestamp.valueOf(postdate + " " +formattedTime);
 
                 Elements fileLinks = postDoc.select("a[href*='attach_no=']");
                 List<Attachment> attachments = new ArrayList<>();
@@ -358,7 +372,7 @@ public class PostInfo {
                     String attachmentName = link.text();
                     attachments.add(new Attachment(attachmentName, attachmentUrl));
                 }
-                postsOnPage.add(new BoardPost(postdepartment, posttitle, postauthor, postdate, hits, postlink, content, attachments,categoryId));
+                postsOnPage.add(new BoardPost(postdepartment, posttitle, postauthor, created_at, hits, postlink, content, attachments,categoryId));
 
             } catch (Exception e) {
                 System.err.println("오류: 게시물 상세 페이지 처리 중 예외가 발생했습니다: " + e.getMessage() + " (URL: " + post + ")");
