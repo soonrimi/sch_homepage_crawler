@@ -306,7 +306,7 @@ public class PostInfo {
 
                 }
 
-                String content = postDoc.select(".board_contents > div.sch_link_target").text();
+                String content = postDoc.select(".board_contents > div.sch_link_target").html();
 
                 String postdepartment = "중앙도서관";
                 Long categoryId = 1L; // 기본값 설정
