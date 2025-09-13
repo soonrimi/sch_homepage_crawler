@@ -10,6 +10,12 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -18,8 +24,15 @@ public class WebCrawlerAppTest {
     public static void main(String[] args) throws IOException, URISyntaxException {
         HtmlFetcher htmlFetcher=new HtmlFetcher();
         PostInfo postInfo=new PostInfo();
+        // Timestamp를 LocalDateTime으로 변환합니다.
+        LocalDateTime localDateTime = Timestamp.from(Instant.now()).toLocalDateTime();
 
+        // (1-1) LocalTime 객체로 시간 정보만 추출하기
+        LocalTime localTime = localDateTime.toLocalTime();
 
+        // (1-2) 원하는 형식의 시간 문자열로 추출하기 (HH:mm:ss)
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+        String formattedTime = localDateTime.format(timeFormatter);
 
 //        // --- 테스트 설정 ---
 //        // 테스트를 시작할 게시판의 URL을 여기에 입력하세요.
