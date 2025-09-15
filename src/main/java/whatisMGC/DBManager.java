@@ -163,7 +163,7 @@ public class DBManager {
 
     public void appendPostsToDb(List<BoardPost> newPosts, String postTableName) throws SQLException {
         // 1. BoardPosts 테이블에 게시물 정보를 삽입하는 SQL
-        String postSql = "INSERT INTO " + postTableName + " (source, title, writer, created_at, view_count, external_source_url, content, category_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String postSql = "INSERT INTO " + postTableName + " (source, title, writer, created_at, view_count, external_source_url, content, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         // 2. Attachments 테이블에 첨부파일 정보를 삽입하는 SQL
         String attachmentSql = "INSERT INTO " + "crawl_attachments" + " (notice_id, file_name, file_url) VALUES (?, ?, ?)";
 
@@ -174,7 +174,7 @@ public class DBManager {
 
             // Check and add missing columns
             DatabaseMetaData meta = conn.getMetaData();
-            String[] columnsToCheck = {"source", "title", "writer", "created_at", "view_count", "external_source_url", "content", "category_id"};
+            String[] columnsToCheck = {"source", "title", "writer", "created_at", "view_count", "external_source_url", "content", "category"};
             for (String columnName : columnsToCheck) {
                 try (ResultSet colRs = meta.getColumns(null, null, postTableName, columnName)) {
                     if (!colRs.next()) {
@@ -199,7 +199,7 @@ public class DBManager {
                     postPstmt.setString(5, post.getHits());
                     postPstmt.setString(6, post.getAbsoluteUrl());
                     postPstmt.setString(7, post.getContent());
-                    postPstmt.setLong(8, post.getCategoryId());
+                    postPstmt.setLong(8, post.getCategory());
                     postPstmt.executeUpdate();
 
                     int postId;

@@ -309,7 +309,7 @@ public class PostInfo {
                 String content = postDoc.select(".board_contents > div.sch_link_target").html();
 
                 String postdepartment = "중앙도서관";
-                Long categoryId = 1L; // 기본값 설정
+                Category category = Category.UNIVERSITY; // 기본값 설정
                 //1 : 학사, 대학 관련, 2. 학과, 4. 채용관련, 5. 동아리 관련
 
                 if (postlink != null && !postlink.isEmpty()) {
@@ -322,19 +322,19 @@ public class PostInfo {
                             if (postPath.startsWith(pagePath) && postUri.getAuthority().equals(pageUri.getAuthority())) {
                                 if (page.getTitle().contains("학과") || page.getTitle().contains("학부")|| page.getTitle().contains("전공")) {
                                     if (page.getBoardName().contains("학과공지")||page.getBoardName().contains("학과소식")||page.getBoardName().contains("학과게시판")||page.getBoardName().contains("학과행사일정")||page.getBoardName().contains("학사공지")||page.getBoardName().contains("커뮤니티")){
-                                        categoryId = 2L; // 학과
+                                        category = Category.DEPARTMENT; // 학과
                                         postdepartment = page.getTitle();
                                         break;
                                 }else if (page.getBoardName().contains("진로 및 취업")){
-                                    categoryId = 4L; // 채용관련
+                                    category = Category.RECRUIT; // 채용관련
                                     postdepartment = page.getTitle();
                                     break;
                                 } else if (posttitle.contains("동아리") || content.contains("동아리")|| posttitle.contains("학생회")) {
-                                    categoryId = 5L; // 동아리, 활동 관련
+                                    category = Category.ACTIVITY; // 동아리, 활동 관련
                                     postdepartment = page.getTitle();
                                     break;
                                 } else {
-                                    categoryId = 1L; // 기본값: 학사, 대학 관련
+                                    category = Category.UNIVERSITY; // 기본값: 학사, 대학 관련
                                     postdepartment = page.getTitle();
                                     break;
                                 }
@@ -372,7 +372,7 @@ public class PostInfo {
                     String attachmentName = link.text();
                     attachments.add(new Attachment(attachmentName, attachmentUrl));
                 }
-                postsOnPage.add(new BoardPost(postdepartment, posttitle, postauthor, created_at, hits, postlink, content, attachments,categoryId));
+                postsOnPage.add(new BoardPost(postdepartment, posttitle, postauthor, created_at, hits, postlink, content, attachments,category));
 
             } catch (Exception e) {
                 System.err.println("오류: 게시물 상세 페이지 처리 중 예외가 발생했습니다: " + e.getMessage() + " (URL: " + post + ")");
