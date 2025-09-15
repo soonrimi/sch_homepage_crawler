@@ -1,5 +1,6 @@
 package whatisMGC;
 
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Objects;
 
@@ -8,7 +9,7 @@ public class BoardPost {
     private String department;
     private String title;
     private String author;
-    private String postDate;
+    private Timestamp postDate;
     private String hits;
     private String absoluteUrl;
     private String content;
@@ -16,7 +17,7 @@ public class BoardPost {
     private Long categoryId;
 
     // 생성자
-    public BoardPost(String department, String title, String author, String postDate, String hits, String absoluteUrl, String content, List<Attachment> attachments, Long categoryId) {
+    public BoardPost(String department, String title, String author, Timestamp postDate, String hits, String absoluteUrl, String content, List<Attachment> attachments, Long categoryId) {
         this.department = department;
         this.title = title;
         this.author = author;
@@ -35,8 +36,8 @@ public class BoardPost {
     public void setTitle(String title) { this.title = title; }
     public String getAuthor() { return author; }
     public void setAuthor(String author) { this.author = author; }
-    public String getpostDate() { return postDate; }
-    public void setpostDate(String postTime) { this.postDate = postDate; }
+    public Timestamp getpostDate() { return postDate; }
+    public void setpostDate(Timestamp postTime) { this.postDate = postDate; }
     public String getAbsoluteUrl() { return absoluteUrl; }
     public void setAbsoluteUrl(String absoluteUrl) { this.absoluteUrl = absoluteUrl; }
     public String getContent() { return content; }
