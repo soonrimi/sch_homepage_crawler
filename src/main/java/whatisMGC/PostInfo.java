@@ -109,7 +109,22 @@ public class PostInfo {
                         break;
                     }
 
+                    // 페이지 이동 시 0.5~1초 랜덤 딜레이
+                    try {
+                        long delay = 500 + (long)(Math.random() * 500); // 500~1000ms
+                        Thread.sleep(delay);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+
                     currentDoc = htmlFetcher.getHTMLDocument(nextUrl);
+                }
+                // 게시판별 크롤링 후 1~2초 랜덤 딜레이
+                try {
+                    long delay = 1000 + (long)(Math.random() * 1000); // 1000~2000ms
+                    Thread.sleep(delay);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                 }
             } catch (Exception e) {
                 System.err.println("오류: '" + page.getTitle() + "' 게시판 처리 중 예외 발생: " + e.getMessage());
