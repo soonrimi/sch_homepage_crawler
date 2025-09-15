@@ -72,5 +72,14 @@ public class WebCrawlerApp {
         } else {
             System.out.println("새로 추가된 게시물이 없습니다.");
         }
+
+        // 크롤링이 끝난 후 10분 대기
+        try {
+            System.out.println("크롤링이 끝났습니다. 10분(600초) 대기 후 종료합니다...");
+            Thread.sleep(600_000); // 600,000ms = 10분
+        } catch (InterruptedException e) {
+            System.err.println("대기 중 인터럽트 발생: " + e.getMessage());
+            Thread.currentThread().interrupt();
+        }
     }
 }
