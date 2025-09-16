@@ -45,8 +45,6 @@ public class WebCrawlerApp {
             }
         }
         dbManager.insertHardcodedLibraryBoards(SUB_BOARDS_TABLE_NAME);
-
-        // --- 4단계: 선택된 모드에 따라 게시물 크롤링 ---
         System.out.println("4. DB에서 소게시판 목록을 가져와 게시물을 크롤링합니다...");
         List<BoardPage> subBoardsFromDb = dbManager.loadSubBoardPagesFromDb(SUB_BOARDS_TABLE_NAME);
 
@@ -75,8 +73,8 @@ public class WebCrawlerApp {
 
         // 크롤링이 끝난 후 10분 대기
         try {
-            System.out.println("크롤링이 끝났습니다. 10분(600초) 대기 후 종료합니다...");
-            Thread.sleep(600_000); // 600,000ms = 10분
+            System.out.println("크롤링이 끝났습니다. 30분시간(1800초) 대기 후 종료합니다...");
+            Thread.sleep(1800_000); // 600,000ms = 10분 & 1,800,000ms = 30분
         } catch (InterruptedException e) {
             System.err.println("대기 중 인터럽트 발생: " + e.getMessage());
             Thread.currentThread().interrupt();
