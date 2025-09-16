@@ -1,0 +1,16 @@
+# Dockerfile.scheduler (수정)
+
+FROM alpine:latest
+
+RUN apk add --no-cache cronie docker-cli
+
+RUN mkdir -p /var/spool/cron/crontabs
+
+COPY crontab /etc/crontabs/root
+COPY crontab /var/spool/cron/crontabs/root
+
+# 권한 설정 (이건 중요하므로 유지합니다)
+RUN chmod 600 /var/spool/cron/crontabs/root
+
+# CMD를 "-l 8" 플래그 없이 원래대로 변경
+CMD ["crond", "-f"]
