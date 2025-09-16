@@ -80,7 +80,9 @@ public class PostInfo {
                         if (timestamp == null) {
                             continue;
                         }
-                        allPosts.add(post);
+                        if (seen.add(post)) {
+                            allPosts.add(post);
+                        }
                         LocalDate postDate = timestamp.toLocalDateTime().toLocalDate();
 
                         if (postDate.isBefore(startDate)) {
@@ -330,31 +332,42 @@ public class PostInfo {
                         for (BoardPage page : pages) {
                             URI pageUri = new URI(page.getAbsoluteUrl());
                             String pagePath = pageUri.getPath();
+
                             if (postPath.startsWith(pagePath) && postUri.getAuthority().equals(pageUri.getAuthority())) {
-                                if (page.getTitle().contains("학과") || page.getTitle().contains("학부")|| page.getTitle().contains("전공")) {
-                                    if (page.getBoardName().contains("학과공지")||page.getBoardName().contains("학과소식")||page.getBoardName().contains("학과게시판")||page.getBoardName().contains("학과행사일정")||page.getBoardName().contains("커뮤니티")){
-                                        category = Category.DEPARTMENT; // 학과
-                                        postdepartment = page.getTitle();
-                                        break;
-                                }else if (page.getBoardName().contains("진로 및 취업")){
+                                if (page.getBoardName().contains("학과공지") || page.getBoardName().contains("학과소식") ||
+                                        page.getBoardName().contains("학과게시판") || page.getBoardName().contains("학과행사일정") ||
+                                        page.getBoardName().contains("커뮤니티") ||
+                                        (page.getTitle().contains("학과") || page.getTitle().contains("학부") || page.getTitle().contains("전공"))) {
+                                    category = Category.DEPARTMENT; // 학과
+                                    postdepartment = page.getTitle();
+                                    break;
+                                }
+                                else if (page.getBoardName().contains("진로") || page.getBoardName().contains("취업")){
                                     category = Category.RECRUIT; // 채용관련
                                     postdepartment = page.getTitle();
                                     break;
-                                } else if (posttitle.contains("동아리") || content.contains("동아리")|| posttitle.contains("학생회")) {
+                                }
+                                else if (posttitle.contains("동아리") || content.contains("동아리") || posttitle.contains("학생회")) {
                                     category = Category.ACTIVITY; // 동아리, 활동 관련
                                     postdepartment = page.getTitle();
                                     break;
-                                } else {
-                                    category = Category.UNIVERSITY; // 기본값: 학사, 대학 관련
+                                }
+                                else {
+                                    category = Category.UNIVERSITY; // 학사, 대학 관련 (나머지 기본값)
                                     postdepartment = page.getTitle();
                                     break;
                                 }
-                                }
                             }
-
-
-
+                            else {
+                                category = Category.UNIVERSITY; // 대학
+                                postdepartment = page.getTitle();
+                                break;
+                            }
                         }
+
+
+
+
                     } catch (URISyntaxException e) {
                         System.err.println("오류: department를 찾는 중 URL 구문 분석 실패: " + postlink);
                     }
