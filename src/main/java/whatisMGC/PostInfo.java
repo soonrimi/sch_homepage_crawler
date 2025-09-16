@@ -334,36 +334,43 @@ public class PostInfo {
                             String pagePath = pageUri.getPath();
 
                             if (postPath.startsWith(pagePath) && postUri.getAuthority().equals(pageUri.getAuthority())) {
-                                if (page.getBoardName().contains("학과공지") || page.getBoardName().contains("학과소식") ||
-                                        page.getBoardName().contains("학과게시판") || page.getBoardName().contains("학과행사일정") ||
-                                        page.getBoardName().contains("커뮤니티") ||
-                                        (page.getTitle().contains("학과") || page.getTitle().contains("학부") || page.getTitle().contains("전공"))) {
-                                    category = Category.DEPARTMENT; // 학과
-                                    postdepartment = page.getTitle();
-                                    break;
-                                }
-                                else if (page.getBoardName().contains("진로") || page.getBoardName().contains("취업")){
+                                if (page.getTitle().contains("학과") || page.getTitle().contains("학부") || page.getTitle().contains("전공")) {
+                                    if (page.getBoardName().contains("학과공지") || page.getBoardName().contains("학과소식") || page.getBoardName().contains("학과게시판") || page.getBoardName().contains("학과행사일정") || page.getBoardName().contains("커뮤니티")) {
+                                        category = Category.DEPARTMENT; // 학과
+                                        postdepartment = page.getTitle();
+                                        break;
+                                    } else if (page.getBoardName().contains("진로 및 취업")) {
+                                        category = Category.RECRUIT; // 채용관련
+                                        postdepartment = page.getTitle();
+                                        break;
+                                    } else if (posttitle.contains("동아리") || content.contains("동아리") || posttitle.contains("학생회")) {
+                                        category = Category.ACTIVITY; // 동아리, 활동 관련
+                                        postdepartment = page.getTitle();
+                                        break;
+                                    } else {
+                                        postdepartment = page.getTitle();
+                                        break;
+                                    }
+                                } else if (page.getTitle().contains("채용") || page.getTitle().contains("취업") || page.getTitle().contains("진로")) {
                                     category = Category.RECRUIT; // 채용관련
                                     postdepartment = page.getTitle();
                                     break;
-                                }
-                                else if (posttitle.contains("동아리") || content.contains("동아리") || posttitle.contains("학생회")) {
+                                } else if (page.getTitle().contains("동아리") || page.getTitle().contains("학생회") || page.getTitle().contains("총학생회")) {
                                     category = Category.ACTIVITY; // 동아리, 활동 관련
                                     postdepartment = page.getTitle();
                                     break;
-                                }
-                                else {
-                                    category = Category.UNIVERSITY; // 학사, 대학 관련 (나머지 기본값)
+                                } else if (page.getTitle().contains("홍보") || page.getTitle().contains("광고") || page.getTitle().contains("PR")) {
+                                    category = Category.PROMOTION; // 홍보, 광고 관련
+                                    postdepartment = page.getTitle();
+                                    break;
+                                } else {
                                     postdepartment = page.getTitle();
                                     break;
                                 }
                             }
-                            else {
-                                category = Category.UNIVERSITY; // 대학
-                                postdepartment = page.getTitle();
-                                break;
-                            }
                         }
+
+
 
 
 
