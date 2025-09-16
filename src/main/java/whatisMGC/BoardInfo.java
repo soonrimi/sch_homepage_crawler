@@ -22,9 +22,9 @@ public class BoardInfo {
     public List<BoardPage> getAllPages(Document doc) {
         // 1. 공지사항 및 학과, 센터 링크들을 Jsoup 셀렉터로 모두 가져와 하나의 리스트로 합칩니다.
         List<BoardPage> allPages = new ArrayList<>();
-        allPages.addAll(extractBoardInfo(".type_01 ul li > a", doc));
-        allPages.addAll(extractBoardInfo(".type_02 > ul:nth-child(2) > li > a", doc));
         allPages.addAll(extractBoardInfo(".sub_6 > div:nth-child(2) > div:nth-child(1) > ul:nth-child(2) > li > a", doc));
+        allPages.addAll(extractBoardInfo(".type_02 > ul:nth-child(2) > li > a", doc));
+        allPages.addAll(extractBoardInfo(".type_01 ul li > a", doc));
 
         // 2. 카테고리 분류를 위한 이름 리스트를 정의합니다.
         List<String> centerNames = List.of("SRC센터(생활관)", "학사팀", "SW중심대학사업단", "원격교육지원센터", "국제교육교류처", "인권센터", "심리건강상담센터", "보건센터", "공학교육혁신센터", "중앙도서관", "향설나눔대학","대학일자리플러스센터(I'Design)","교원양성지원센터","Dream비교과센터");
@@ -65,7 +65,7 @@ public class BoardInfo {
      */
     // ----------------------------------------------------------------------
     public List<BoardPage> findSubBoardsOnPage(Document parentDoc, BoardPage parentPage) {
-        String combinedSelector = "a:contains(커뮤니티), a:contains(공지사항),  a:contains(학사공지), a:contains(학과공지), a:contains(자료실), a:contains(게시판), a:contains(학과 취업공지),a:contains(진로 및 취업), a:contains(학과소식), a:contains(학과행사일정), a:contains(알림마당)";
+        String combinedSelector = "a:contains(커뮤니티), a:contains(공지사항),  a:contains(학사공지), a:contains(학과공지), a:contains(자료실), a:contains(게시판), a:contains(학과 취업공지),a:contains(진로 및 취업), a:contains(학과소식), a:contains(학과행사일정), a:contains(알림마당), a:contains(장학공지), a:contains(취업정보), a:contains(자유게시판), a:contains(실습 및 채용 정보), a:contains(교내장학금), a:contains(일반공지), a:contains(학술공지), a:contains(교육/행사공지), a:contains(취업정보)";
         if (parentPage.getTitle().contains("대학일자리플러스센터") || parentPage.getTitle().contains("I'Design")) {
             combinedSelector = "a:contains(재맞고 공지사항), li.liMenu:nth-child(10) > div:nth-child(2) a:contains(공지사항)";
         } else if (parentPage.getTitle().contains("보건행정경영")) {
@@ -77,7 +77,7 @@ public class BoardInfo {
         } else if (parentPage.getTitle().contains("청소년교육상담학과")) {
             combinedSelector = "a:contains(학사공지), a:contains(학과공지), a:contains(실습 및 채용 정보)";
         } else if (parentPage.getTitle().contains("국제교육교류처")) {
-            combinedSelector = "a:contains(공지사항), a:contains( 공지사항), , a:contains(외국인입학 공지사항), , a:contains(유학생 공지사항), , a:contains(외국어강좌 공지사항), , a:contains(취업·아르바이트 공지사항)";
+            combinedSelector = "a:contains(공지사항), a:contains( 공지사항), a:contains(외국인입학 공지사항), a:contains(유학생 공지사항), a:contains(외국어강좌 공지사항), a:contains(취업·아르바이트 공지사항)";
         } else if (parentPage.getTitle().contains("환경보건학과")) {
             combinedSelector = "a:contains(공지사항)";
         }else if (parentPage.getTitle().contains("글로벌문화산업학과")) {
@@ -90,6 +90,30 @@ public class BoardInfo {
             combinedSelector = "a:contains(공지사항), a:contains(자유게시판)";
         }else if (parentPage.getTitle().contains("도서관")) {
             combinedSelector = "a:contains(일반공지), a:contains(학술공지), a:contains(교육/행사공지)";
+        }else if (parentPage.getTitle().contains("전자공학과")) {
+            combinedSelector = "a:contains(학과공지), a:contains(커뮤니티), a:contains(교내장학금)";
+        }else if (parentPage.getTitle().contains("영미학과")) {
+            combinedSelector = "a:contains(학과공지), a:contains(학과소식)";
+        }else if (parentPage.getTitle().contains("중국학과")) {
+            combinedSelector = "a:contains(학과공지), a:contains(학과소식)";
+        }else if (parentPage.getTitle().contains("미디어커뮤니케이션학과")) {
+            combinedSelector = "a:contains(학과공지), a:contains(학과소식)";
+        }else if (parentPage.getTitle().contains("건축학과")) {
+            combinedSelector = "a:contains(학과공지), a:contains(학과소식)";
+        }else if (parentPage.getTitle().contains("스마트자동차학과")) {
+            combinedSelector = "a:contains(학과공지), a:contains(학과소식)";
+        }else if (parentPage.getTitle().contains("에너지공학과")) {
+            combinedSelector = "a:contains(학과공지), a:contains(학과소식)";
+        }else if (parentPage.getTitle().contains("공연영상학과")) {
+            combinedSelector = "a:contains(학과공지), a:contains(학과소식)";
+        }else if (parentPage.getTitle().contains("탄소중립학과")) {
+            combinedSelector = "a:contains(학과공지), a:contains(학과소식)";
+        }else if (parentPage.getTitle().contains("헬스케어융합전공")) {
+            combinedSelector = "a:contains(학과공지), a:contains(학과소식)";
+        }else if (parentPage.getTitle().contains("한국문화콘텐츠학과")) {
+            combinedSelector = "a:contains(학과공지), a:contains(학과소식)";
+        }else if (parentPage.getTitle().contains("나노화학공학과")) {
+            combinedSelector = "a:contains(학과공지), a:contains(학과소식)";
         }
 
         Elements links = parentDoc.select(combinedSelector);

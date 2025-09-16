@@ -43,7 +43,7 @@ public class BoardPost {
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
     public int getCategory() { return category.ordinal(); }
-    public void setCategory(Category category) { this.category = category; }
+    public void setCategory(Category category) { this.category = Category.valueOf(String.valueOf(category)); }
 
     @Override
     public String toString() {
@@ -55,7 +55,7 @@ public class BoardPost {
                 ", hits='" + hits + '\'' +
                 ", absoluteUrl='" + absoluteUrl + '\'' +
                 ", attachments=" + attachments + '\'' +
-                ", categoryId=" + category + '\'' +
+                ", category=" + category + '\'' +
                 '}';
     }
 
@@ -66,13 +66,12 @@ public class BoardPost {
         BoardPost boardPost = (BoardPost) o;
         // title, author, department가 모두 같을 경우 true 반환
         return Objects.equals(title, boardPost.title) &&
-                Objects.equals(author, boardPost.author) &&
-                Objects.equals(department, boardPost.department);
+                Objects.equals(author, boardPost.author);
     }
     @Override
     public int hashCode() {
         // title, author, department를 기준으로 해시 코드 생성
-        return Objects.hash(title, author, department);
+        return Objects.hash(title, author);
     }
 
     public String getHits() {
