@@ -66,8 +66,7 @@ public class BoardPost {
         BoardPost boardPost = (BoardPost) o;
         // title, author, department가 모두 같을 경우 true 반환
         return Objects.equals(title, boardPost.title) &&
-                Objects.equals(author, boardPost.author) &&
-                Objects.equals(department, boardPost.department);
+                Objects.equals(author, boardPost.author);
     }
     @Override
     public int hashCode() {

@@ -22,9 +22,9 @@ public class BoardInfo {
     public List<BoardPage> getAllPages(Document doc) {
         // 1. 공지사항 및 학과, 센터 링크들을 Jsoup 셀렉터로 모두 가져와 하나의 리스트로 합칩니다.
         List<BoardPage> allPages = new ArrayList<>();
-        allPages.addAll(extractBoardInfo(".type_01 ul li > a", doc));
-        allPages.addAll(extractBoardInfo(".type_02 > ul:nth-child(2) > li > a", doc));
         allPages.addAll(extractBoardInfo(".sub_6 > div:nth-child(2) > div:nth-child(1) > ul:nth-child(2) > li > a", doc));
+        allPages.addAll(extractBoardInfo(".type_02 > ul:nth-child(2) > li > a", doc));
+        allPages.addAll(extractBoardInfo(".type_01 ul li > a", doc));
 
         // 2. 카테고리 분류를 위한 이름 리스트를 정의합니다.
         List<String> centerNames = List.of("SRC센터(생활관)", "학사팀", "SW중심대학사업단", "원격교육지원센터", "국제교육교류처", "인권센터", "심리건강상담센터", "보건센터", "공학교육혁신센터", "중앙도서관", "향설나눔대학","대학일자리플러스센터(I'Design)","교원양성지원센터","Dream비교과센터");
