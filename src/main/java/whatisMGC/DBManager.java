@@ -199,7 +199,7 @@ public class DBManager {
                     postPstmt.setString(5, post.getHits());
                     postPstmt.setString(6, post.getAbsoluteUrl());
                     postPstmt.setString(7, post.getContent());
-                    postPstmt.setLong(8, post.getCategory());
+                    postPstmt.setString(8, String.valueOf(post.getCategory()));
                     postPstmt.executeUpdate();
 
                     int postId;
