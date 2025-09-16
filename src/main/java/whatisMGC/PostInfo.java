@@ -55,13 +55,19 @@ public class PostInfo {
 
         System.out.println("2024년 1월 1일 이후 모든 게시판의 글을 탐색합니다.");
         for (BoardPage page : pageList) {
+            if (page.getBoardName().equals("자유게시판")||page.getBoardName().equals("학사공지")){
+                continue;
+            }
             try {
                 System.out.println(">>> " + page.getTitle()  + "의 " + page.getBoardName() + " 게시판 탐색 시작... " + page.getAbsoluteUrl());
                 String currentUrl = page.getAbsoluteUrl();
                 Document currentDoc = htmlFetcher.getHTMLDocument(currentUrl);
-                boolean stopCrawlingThisBoard = false;
 
                 while (true) {
+
+
+                    boolean foundOldPostOnThisPage = false;
+
                     List<BoardPost> postsOnPage = scrapePostDetailFromBoard(currentDoc, pageList);
 
                     if (postsOnPage.isEmpty()) {
@@ -71,36 +77,28 @@ public class PostInfo {
 
                     for (BoardPost post : postsOnPage) {
                         Timestamp timestamp = post.getpostDate();
-
                         if (timestamp == null) {
                             continue;
                         }
-
+                        allPosts.add(post);
                         LocalDate postDate = timestamp.toLocalDateTime().toLocalDate();
 
                         if (postDate.isBefore(startDate)) {
-                            System.out.println(startDate + " 이전 게시물(" + post.getpostDate() + ")을 발견하여 이 게시판의 탐색을 중단합니다.");
-                            stopCrawlingThisBoard = true;
-                            break;
-                        }
-
-                        // 중복되지 않은 게시물만 최종 리스트에 추가합니다.
-                        if (seen.add(post)) {
-                            allPosts.add(post);
+                            foundOldPostOnThisPage = true;
                         }
                     }
 
-                    // 중단 플래그가 설정되었다면, 다음 페이지로 넘어가지 않고 while 루프를 탈출합니다.
-                    if (stopCrawlingThisBoard) {
+                    if (foundOldPostOnThisPage) {
+                        System.out.println(startDate + " 이전 게시물을 포함한 페이지의 탐색을 완료했습니다. 이 게시판의 탐색을 중단합니다.");
                         break;
                     }
 
-                    // 다음 페이지로 이동하는 로직
-                    String combinedSelector=".paging a[title*='다음'], .page_list a[title*='다음'],.pager a[title*='다음']";
+                    // 다음 페이지로 이동하는 로직 (기존과 동일)
+                    String combinedSelector=".paging a[title*='다음'], .page_list a[title*='다음'],.pager a[title*='다음'], a.pager.next:has(span:contains(다음)), a.pager.next, a:has(img[alt*='다음'])";
                     Element nextElement = currentDoc.selectFirst(combinedSelector);
                     if (nextElement == null) {
                         System.out.println("마지막 페이지입니다. 이 게시판의 탐색을 종료합니다.");
-                        break; // 다음 페이지가 없으면 종료합니다.
+                        break;
                     }
 
                     String nextUrl = nextElement.attr("abs:href");
@@ -109,9 +107,8 @@ public class PostInfo {
                         break;
                     }
 
-                    // 페이지 이동 시 0.5~1초 랜덤 딜레이
                     try {
-                        long delay = 500 + (long)(Math.random() * 500); // 500~1000ms
+                        long delay = 500 + (long)(Math.random() * 500);
                         Thread.sleep(delay);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
@@ -119,9 +116,8 @@ public class PostInfo {
 
                     currentDoc = htmlFetcher.getHTMLDocument(nextUrl);
                 }
-                // 게시판별 크롤링 후 1~2초 랜덤 딜레이
                 try {
-                    long delay = 1000 + (long)(Math.random() * 1000); // 1000~2000ms
+                    long delay = 1000 + (long)(Math.random() * 1000);
                     Thread.sleep(delay);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -336,7 +332,7 @@ public class PostInfo {
                             String pagePath = pageUri.getPath();
                             if (postPath.startsWith(pagePath) && postUri.getAuthority().equals(pageUri.getAuthority())) {
                                 if (page.getTitle().contains("학과") || page.getTitle().contains("학부")|| page.getTitle().contains("전공")) {
-                                    if (page.getBoardName().contains("학과공지")||page.getBoardName().contains("학과소식")||page.getBoardName().contains("학과게시판")||page.getBoardName().contains("학과행사일정")||page.getBoardName().contains("학사공지")||page.getBoardName().contains("커뮤니티")){
+                                    if (page.getBoardName().contains("학과공지")||page.getBoardName().contains("학과소식")||page.getBoardName().contains("학과게시판")||page.getBoardName().contains("학과행사일정")||page.getBoardName().contains("커뮤니티")){
                                         category = Category.DEPARTMENT; // 학과
                                         postdepartment = page.getTitle();
                                         break;
