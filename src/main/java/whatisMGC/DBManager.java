@@ -161,104 +161,105 @@ public class DBManager {
         return existingUrls;
     }
 
-    public void appendPostsToDb(List<BoardPost> newPosts, String postTableName) throws SQLException {
-        // 1. BoardPosts 테이블에 게시물 정보를 삽입하는 SQL
-        String postSql = "INSERT INTO " + postTableName + " (source, title, writer, created_at, view_count, external_source_url, content, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        // 2. Attachments 테이블에 첨부파일 정보를 삽입하는 SQL
-        String attachmentSql = "INSERT INTO " + "crawl_attachments" + " (notice_id, file_name, file_url) VALUES (?, ?, ?)";
+    public void appendPostsToDb(List<BoardPost> newPosts) throws SQLException {
+        // 1. SQL 쿼리를 상수로 정의하여 가독성을 높입니다.
+        final String noticeSql = "INSERT INTO notice (title, content, created_at, view_count, category, notice_type) VALUES (?, ?, ?, ?, ?, 'CRAWL')";
+        final String crawlPostsSql = "INSERT INTO crawl_posts (id, writer, external_source_url, source) VALUES (?, ?, ?, ?)";
+        final String attachmentParentSql = "INSERT INTO attachment (file_name, file_url, attachment_type) VALUES (?, ?, 'CRAWL')";
+        final String attachmentChildSql = "INSERT INTO crawl_attachment (id, crawl_posts_id) VALUES (?, ?)";
 
-        Connection conn = null; // Declare connection outside the try block
+        Connection conn = null;
         try {
-            conn = getConnection(); // Initialize connection here
+            conn = getConnection();
             conn.setAutoCommit(false);
 
-            // Check and add missing columns
-            DatabaseMetaData meta = conn.getMetaData();
-            String[] columnsToCheck = {"source", "title", "writer", "created_at", "view_count", "external_source_url", "content", "category"};
-            for (String columnName : columnsToCheck) {
-                try (ResultSet colRs = meta.getColumns(null, null, postTableName, columnName)) {
-                    if (!colRs.next()) {
-                        String alterSql = "ALTER TABLE " + postTableName + " ADD COLUMN " + columnName + " VARCHAR(255)";
-                        try (Statement stmt = conn.createStatement()) {
-                            stmt.executeUpdate(alterSql);
-                        }
-                    }
-                }
-            }
-
-            try (PreparedStatement postPstmt = conn.prepareStatement(postSql, Statement.RETURN_GENERATED_KEYS);
-                 PreparedStatement attachmentPstmt = conn.prepareStatement(attachmentSql)) {
+            try (PreparedStatement noticePstmt = conn.prepareStatement(noticeSql, Statement.RETURN_GENERATED_KEYS);
+                 PreparedStatement crawlPostsPstmt = conn.prepareStatement(crawlPostsSql);
+                 PreparedStatement attachmentParentPstmt = conn.prepareStatement(attachmentParentSql, Statement.RETURN_GENERATED_KEYS);
+                 PreparedStatement attachmentChildPstmt = conn.prepareStatement(attachmentChildSql)) {
 
                 for (BoardPost post : newPosts) {
                     if (post == null) continue;
 
-                    postPstmt.setString(1, post.getDepartment());
-                    postPstmt.setString(2, post.getTitle());
-                    postPstmt.setString(3, post.getAuthor());
-                    postPstmt.setTimestamp(4, post.getpostDate());
-                    postPstmt.setString(5, post.getHits());
-                    postPstmt.setString(6, post.getAbsoluteUrl());
-                    postPstmt.setString(7, post.getContent());
-                    postPstmt.setString(8, String.valueOf(post.getCategory()));
-                    postPstmt.executeUpdate();
+                    noticePstmt.setString(1, post.getTitle());
+                    noticePstmt.setString(2, post.getContent());
+                    noticePstmt.setTimestamp(3, post.getpostDate());
+                    noticePstmt.setInt(4, Integer.parseInt(post.getHits()));
+                    noticePstmt.setString(5, post.getCategory());
+                    noticePstmt.executeUpdate();
 
-                    int postId;
-                    try (ResultSet rs = postPstmt.getGeneratedKeys()) {
+                    long noticeId;
+                    try (ResultSet rs = noticePstmt.getGeneratedKeys()) {
                         if (rs.next()) {
-                            postId = rs.getInt(1);
+                            noticeId = rs.getLong(1);
                         } else {
+                            System.err.println("부모 notice의 ID를 가져오는데 실패했습니다: " + post.getTitle());
                             continue;
                         }
                     }
 
-                    for (Attachment attachment : post.getAttachments()) {
-                        attachmentPstmt.setInt(1, postId);
-                        attachmentPstmt.setString(2, attachment.getFileName());
-                        attachmentPstmt.setString(3, attachment.getFileUrl());
-                        attachmentPstmt.addBatch();
+                    crawlPostsPstmt.setLong(1, noticeId);
+                    crawlPostsPstmt.setString(2, post.getAuthor());
+                    crawlPostsPstmt.setString(3, post.getAbsoluteUrl());
+                    crawlPostsPstmt.setString(4, post.getDepartment());
+                    crawlPostsPstmt.executeUpdate();
+
+                    for (Attachment attachmentData : post.getAttachments()) {
+                        attachmentParentPstmt.setString(1, attachmentData.getFileName());
+                        attachmentParentPstmt.setString(2, attachmentData.getFileUrl());
+                        attachmentParentPstmt.executeUpdate();
+
+                        long attachmentId;
+                        try (ResultSet rs = attachmentParentPstmt.getGeneratedKeys()) {
+                            if (rs.next()) {
+                                attachmentId = rs.getLong(1);
+                            } else {
+                                System.err.println("부모 attachment의 ID를 가져오는데 실패했습니다: " + attachmentData.getFileName());
+                                continue;
+                            }
+                        }
+
+                        attachmentChildPstmt.setLong(1, attachmentId);
+                        attachmentChildPstmt.setLong(2, noticeId);
+                        attachmentChildPstmt.addBatch();
                     }
                 }
 
-                attachmentPstmt.executeBatch();
-            }
+                attachmentChildPstmt.executeBatch();
 
-            conn.commit();
+                conn.commit();
 
-        } catch (SQLException e) {
-            if (conn != null) { // 롤백하기 전 연결 여부 확인
-                try {
+            } catch (SQLException e) {
+                System.err.println("데이터베이스 작업 중 오류 발생. 트랜잭션을 롤백합니다.");
+                if (conn != null) {
                     conn.rollback();
-                } catch (SQLException rollbackEx) {
-                    System.err.println("롤백실패: " + rollbackEx.getMessage());
                 }
+                throw e;
             }
-            System.err.println("데이터베이스 작업 중 오류 발생: " + e.getMessage());
-            throw e;
 
         } finally {
             if (conn != null) {
-                try {
-                    conn.close();
-                } catch (SQLException closeEx) {
-                    System.err.println("연결 실패: " + closeEx.getMessage());
-                }
+                conn.close();
             }
         }
     }
-    public Set<String> loadExistingPostKeysFromDb(String tableName) throws SQLException {
-        Set<String> existingKeys = new HashSet<>();
-        // department가 NULL일 경우를 대비하여 IFNULL 함수 사용
-        String sql = "SELECT external_source_url, IFNULL(source, '') as source FROM " + tableName;
+
+    public Set<String> loadExistingPostKeysFromDb(String postTableName) throws SQLException {
+        Set<String> existingPostKeys = new HashSet<>();
+        String sql = "SELECT external_source_url, source FROM " + postTableName;
+
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
+
             while (rs.next()) {
                 String url = rs.getString("external_source_url");
-                String source = rs.getString("source");
-                // URL과 학과를 구분자 '|'로 합쳐 고유 키 생성
-                existingKeys.add(url + "|" + source);
+                String department = rs.getString("source");
+                if (url != null && department != null) {
+                    existingPostKeys.add(url + "|" + department);
+                }
             }
         }
-        return existingKeys;
+        return existingPostKeys;
     }
 }

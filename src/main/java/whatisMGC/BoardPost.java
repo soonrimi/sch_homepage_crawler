@@ -42,8 +42,8 @@ public class BoardPost {
     public void setAbsoluteUrl(String absoluteUrl) { this.absoluteUrl = absoluteUrl; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
-    public int getCategory() { return category.ordinal(); }
-    public void setCategory(Category category) { this.category = Category.valueOf(String.valueOf(category)); }
+    public String getCategory() {return (this.category != null) ? this.category.name() : Category.DEPARTMENT.name(); }
+    public void setCategory(Category category) { this.category = category; }
 
     @Override
     public String toString() {
