@@ -8,10 +8,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
@@ -369,12 +366,6 @@ public class PostInfo {
                                 }
                             }
                         }
-
-
-
-
-
-
                     } catch (URISyntaxException e) {
                         System.err.println("오류: department를 찾는 중 URL 구문 분석 실패: " + postlink);
                     }
@@ -385,16 +376,15 @@ public class PostInfo {
 
                     continue;
                 }
+                ZoneId koreaZoneId = ZoneId.of("Asia/Seoul");
                 // Timestamp를 LocalDateTime으로 변환합니다.
-                LocalDateTime localDateTime = Timestamp.from(Instant.now()).toLocalDateTime();
-
-                // (1-1) LocalTime 객체로 시간 정보만 추출하기
-                LocalTime localTime = localDateTime.toLocalTime();
+                ZonedDateTime nowInKorea = ZonedDateTime.now(koreaZoneId);
 
                 // (1-2) 원하는 형식의 시간 문자열로 추출하기 (HH:mm:ss)
                 DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
-                String formattedTime = localDateTime.format(timeFormatter);
-                Timestamp created_at = Timestamp.valueOf(postdate + " " +formattedTime);
+                String formattedTime = nowInKorea.format(timeFormatter);
+                LocalDateTime localDateTimeToConvert = LocalDateTime.parse(postdate + "T" + formattedTime);
+                Timestamp created_at = Timestamp.valueOf(localDateTimeToConvert);
 
                 Elements fileLinks = postDoc.select("a[href*='attach_no=']");
                 List<Attachment> attachments = new ArrayList<>();
