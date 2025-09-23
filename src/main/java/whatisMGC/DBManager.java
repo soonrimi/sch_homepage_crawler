@@ -22,6 +22,103 @@ public class DBManager {
         return DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
     }
 
+    public void createAllTablesSequentially() {
+        System.out.println("데이터베이스 테이블 생성을 시작합니다...");
+        try (Connection conn = getConnection()) {
+            executeCreateTable(conn, "crawl_pages", getCrawlPagesDdl());
+            executeCreateTable(conn, "notice", getNoticeDdl());
+            executeCreateTable(conn, "attachment", getAttachmentDdl());
+
+            executeCreateTable(conn, "sub_crawl_pages", getSubCrawlPagesDdl());
+            executeCreateTable(conn, "crawl_posts", getCrawlPostsDdl());
+            executeCreateTable(conn, "crawl_attachment", getCrawlAttachmentDdl());
+
+            System.out.println("테이블 생성 작업이 성공적으로 완료되었습니다. (이미 존재하는 테이블은 건너뛰었습니다)");
+        } catch (SQLException e) {
+            System.err.println("테이블 생성 과정 중 데이터베이스 연결 오류가 발생했습니다.");
+            e.printStackTrace();
+        }
+    }
+
+
+    private void executeCreateTable(Connection conn, String tableName, String ddl) {
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(ddl);
+            System.out.println("- '" + tableName + "' 테이블이 준비되었습니다.");
+        } catch (SQLException e) {
+            System.err.println("오류: '" + tableName + "' 테이블 생성에 실패했습니다.");
+            e.printStackTrace();
+        }
+    }
+
+    private String getCrawlPagesDdl() {
+        return "CREATE TABLE IF NOT EXISTS crawl_pages (" +
+                "    id INT AUTO_INCREMENT PRIMARY KEY, " +
+                "    title VARCHAR(255) NOT NULL, " +
+                "    absolute_url VARCHAR(2048) NOT NULL, " +
+                "    category VARCHAR(100), " +
+                "    CONSTRAINT uk_crawl_pages_absolute_url UNIQUE (absolute_url)" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+    }
+
+    private String getNoticeDdl() {
+        return "CREATE TABLE IF NOT EXISTS notice (" +
+                "    id INT AUTO_INCREMENT PRIMARY KEY, " +
+                "    title VARCHAR(512) NOT NULL, " +
+                "    content LONGTEXT, " +
+                "    created_at TIMESTAMP NOT NULL, " +
+                "    view_count INT DEFAULT 0, " +
+                "    category ENUM('ACTIVITY','DEPARTMENT','GRADE','PROMOTION','RECRUIT','UNIVERSITY') NOT NULL, " +
+                "    notice_type VARCHAR(50) NOT NULL" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+    }
+
+    private String getAttachmentDdl() {
+        return "CREATE TABLE IF NOT EXISTS attachment (" +
+                "    id INT AUTO_INCREMENT PRIMARY KEY, " +
+                "    file_name VARCHAR(255) NOT NULL, " +
+                "    file_url VARCHAR(2048) NOT NULL, " +
+                "    attachment_type VARCHAR(50) NOT NULL" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+    }
+
+    private String getSubCrawlPagesDdl() {
+        return "CREATE TABLE IF NOT EXISTS sub_crawl_pages (" +
+                "    id INT AUTO_INCREMENT PRIMARY KEY, " +
+                "    parent_page_title VARCHAR(255) NOT NULL, " +
+                "    board_name VARCHAR(255) NOT NULL, " +
+                "    sub_board_url VARCHAR(2048) NOT NULL, " +
+                "    page_id INT NOT NULL, " +
+                "    CONSTRAINT uk_sub_crawl_pages_sub_board_url UNIQUE (sub_board_url), " +
+                "    CONSTRAINT fk_sub_crawl_pages_to_crawl_pages " +
+                "        FOREIGN KEY (page_id) REFERENCES crawl_pages(id) " +
+                "        ON DELETE CASCADE ON UPDATE CASCADE" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+    }
+
+    private String getCrawlPostsDdl() {
+        return "CREATE TABLE IF NOT EXISTS crawl_posts (" +
+                "    id INT PRIMARY KEY, " +
+                "    writer VARCHAR(100), " +
+                "    external_source_url VARCHAR(2048) NOT NULL, " +
+                "    source VARCHAR(255), " +
+                "    CONSTRAINT uk_crawl_posts_external_source_url UNIQUE (external_source_url), " +
+                "    CONSTRAINT fk_crawl_posts_to_notice " +
+                "        FOREIGN KEY (id) REFERENCES notice(id) ON DELETE CASCADE" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+    }
+
+    private String getCrawlAttachmentDdl() {
+        return "CREATE TABLE IF NOT EXISTS crawl_attachment (" +
+                "    id INT PRIMARY KEY, " +
+                "    crawl_posts_id INT NOT NULL, " +
+                "    CONSTRAINT fk_crawl_attachment_to_attachment " +
+                "        FOREIGN KEY (id) REFERENCES attachment(id) ON DELETE CASCADE, " +
+                "    CONSTRAINT fk_crawl_attachment_to_crawl_posts " +
+                "        FOREIGN KEY (crawl_posts_id) REFERENCES crawl_posts(id) ON DELETE CASCADE" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+    }
+
 //----------------------------------------------------------------------------------------------------------------------
     /**
      * 최초 실행 시, 게시판 목록을 데이터베이스에 저장합니다.
@@ -80,7 +177,6 @@ public class DBManager {
      * @param tableName 데이터를 삽입할 소게시판 테이블 이름
      */
     public void insertHardcodedLibraryBoards(String tableName) {
-        // ON DUPLICATE KEY UPDATE를 사용하여 이미 데이터가 있어도 오류 없이 URL을 업데이트합니다.
         String sql = "INSERT INTO " + tableName + " (parent_page_title, board_name, sub_board_url, page_id) VALUES " +
                 "('중앙도서관', '일반공지', 'https://library.sch.ac.kr/bbs/list/1', 7167)," +
                 "('중앙도서관', '학술공지', 'https://library.sch.ac.kr/bbs/list/2', 7167), " +
@@ -162,7 +258,6 @@ public class DBManager {
     }
 
     public void appendPostsToDb(List<BoardPost> newPosts) throws SQLException {
-        // 1. SQL 쿼리를 상수로 정의하여 가독성을 높입니다.
         final String noticeSql = "INSERT INTO notice (title, content, created_at, view_count, category, notice_type) VALUES (?, ?, ?, ?, ?, 'CRAWL')";
         final String crawlPostsSql = "INSERT INTO crawl_posts (id, writer, external_source_url, source) VALUES (?, ?, ?, ?)";
         final String attachmentParentSql = "INSERT INTO attachment (file_name, file_url, attachment_type) VALUES (?, ?, 'CRAWL')";
@@ -185,7 +280,9 @@ public class DBManager {
                     noticePstmt.setString(2, post.getContent());
                     noticePstmt.setTimestamp(3, post.getpostDate());
                     noticePstmt.setInt(4, Integer.parseInt(post.getHits()));
+
                     noticePstmt.setString(5, post.getCategory());
+
                     noticePstmt.executeUpdate();
 
                     long noticeId;
@@ -226,7 +323,6 @@ public class DBManager {
                 }
 
                 attachmentChildPstmt.executeBatch();
-
                 conn.commit();
 
             } catch (SQLException e) {

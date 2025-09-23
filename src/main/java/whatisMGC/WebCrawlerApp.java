@@ -24,6 +24,8 @@ public class WebCrawlerApp {
 
         while (true) {
             try {
+                System.out.println("0. 테이블 존재여부 확인 및 필요한 테이블 생성");
+                dbManager.createAllTablesSequentially();
                 // --- 1-3단계: 게시판 목록 수집 및 저장 ---
                 System.out.println("1. 메인 홈페이지에서 게시판 목록을 가져와 DB에 저장합니다...");
                 Document homepageDoc = htmlFetcher.getHTMLDocument(BASE_URL);
