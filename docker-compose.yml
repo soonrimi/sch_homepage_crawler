@@ -2,22 +2,10 @@ version: "3.8"
 
 services:
   soonrimi-app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: sch_board_crawler
+    build: .
+    image: sch_board_crawler:latest
     container_name: sch_board_crawler
     env_file:
       - .env
     restart: unless-stopped
     network_mode: "host" # 로컬 DB 접근을 위해 host 네트워크 사용
-  scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile.scheduler # 2번에서 만든 스케줄러 Dockerfile 사용
-    image: sch_board_scheduler # 스케줄러용 이미지는 따로 이름 짓는 것이 좋음
-    container_name: sch_board_crawler_scheduler
-    restart: unless-stopped
-    volumes:
-      # 호스트의 Docker 소켓을 공유하여 다른 컨테이너 제어
-      - /var/run/docker.sock:/var/run/docker.sock
