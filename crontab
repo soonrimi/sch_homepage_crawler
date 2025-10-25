@@ -1,6 +1,0 @@
-# KST 08:00 (UTC 23:00)에 크롤러 시작
-0 23 * * * /usr/bin/docker start sch_board_crawler
-
-# KST 00:00 (UTC 15:00)에 크롤러 중지
-0 15 * * * /usr/bin/docker stop sch_board_crawler
-
