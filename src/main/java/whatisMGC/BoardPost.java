@@ -10,14 +10,15 @@ public class BoardPost {
     private String title;
     private String author;
     private Timestamp postDate;
-    private String hits;
+    private Integer hits;
     private String absoluteUrl;
     private String content;
     private List<Attachment> attachments;
     private Category category;
+    private String contentHash;
 
     // 생성자
-    public BoardPost(String department, String title, String author, Timestamp postDate, String hits, String absoluteUrl, String content, List<Attachment> attachments, Category category) {
+    public BoardPost(String department, String title, String author, Timestamp postDate, Integer hits, String absoluteUrl, String content, List<Attachment> attachments, Category category, String contentHash) {
         this.department = department;
         this.title = title;
         this.author = author;
@@ -27,6 +28,7 @@ public class BoardPost {
         this.content = content;
         this.attachments = attachments;
         this.category = category;
+        this.contentHash = contentHash;
     }
 
     // Getter 및 Setter 메서드들
@@ -37,7 +39,7 @@ public class BoardPost {
     public String getAuthor() { return author; }
     public void setAuthor(String author) { this.author = author; }
     public Timestamp getpostDate() { return postDate; }
-    public void setpostDate(Timestamp postTime) { this.postDate = postDate; }
+    public void setpostDate(Timestamp postTime) {this.postDate = postTime; }
     public String getAbsoluteUrl() { return absoluteUrl; }
     public void setAbsoluteUrl(String absoluteUrl) { this.absoluteUrl = absoluteUrl; }
     public String getContent() { return content; }
@@ -64,21 +66,18 @@ public class BoardPost {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         BoardPost boardPost = (BoardPost) o;
-        // title, author, department가 모두 같을 경우 true 반환
-        return Objects.equals(title, boardPost.title) &&
-                Objects.equals(author, boardPost.author);
+        return Objects.equals(absoluteUrl, boardPost.absoluteUrl);
     }
     @Override
     public int hashCode() {
-        // title, author, department를 기준으로 해시 코드 생성
-        return Objects.hash(title, author);
+        return Objects.hash(absoluteUrl);
     }
 
-    public String getHits() {
+    public Integer getHits() {
         return hits;
     }
 
-    public void setHits(String hits) {
+    public void setHits(Integer hits) {
         this.hits = hits;
     }
 
@@ -88,5 +87,13 @@ public class BoardPost {
 
     public void setAttachments(List<Attachment> attachments) {
         this.attachments = attachments;
+    }
+
+    public String getContentHash() {
+        return contentHash;
+    }
+
+    public void setContentHash(String contentHash) {
+        this.contentHash = contentHash;
     }
 }

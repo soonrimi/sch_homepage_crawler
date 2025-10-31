@@ -8,15 +8,12 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 
-/**/
+
 public class PostInfo {
     private final HtmlFetcher htmlFetcher = new HtmlFetcher();
     private final BoardInfo boardInfo = new BoardInfo();
@@ -26,21 +23,17 @@ public class PostInfo {
         }
         dateString = dateString.trim();
 
-        // HH:mm 형식 (시간만 있는 경우) -> 오늘 날짜로 처리
         if (dateString.matches("\\d{2}:\\d{2}")) {
             return LocalDate.now();
         }
 
         try {
             return LocalDate.parse(dateString, DateTimeFormatter.ofPattern("yyyy.MM.dd"));
-        } catch (DateTimeParseException e) {
-            // 파싱 실패 시 다음 형식 시도
-        }
+        } catch (DateTimeParseException e) { /* 다음 시도 */ }
 
         try {
             return LocalDate.parse(dateString, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         } catch (DateTimeParseException e) {
-            // 최종 실패
             System.err.println("경고: 지원하지 않는 날짜 형식입니다. '" + dateString + "'");
             return null;
         }
@@ -55,18 +48,14 @@ public class PostInfo {
 
         System.out.println("2024년 1월 1일 이후 모든 게시판의 글을 탐색합니다.");
         for (BoardPage page : pageList) {
-            if (page.getBoardName().equals("자유게시판")||page.getBoardName().equals("학사공지")){
+            if ("자유게시판".equals(page.getBoardName()) || "학사공지".equals(page.getBoardName())){
                 continue;
             }
             try {
-                System.out.println(">>> " + page.getTitle()  + "의 " + page.getBoardName() + " 게시판 탐색 시작... " + page.getAbsoluteUrl());
-                String currentUrl = page.getAbsoluteUrl();
+                System.out.println(">>> " + page.getTitle()  + "의 " + (page.getBoardName() != null ? page.getBoardName() : "(메인)") + " 게시판 탐색 시작... " + page.getAbsoluteUrl());                String currentUrl = page.getAbsoluteUrl();
                 Document currentDoc = htmlFetcher.getHTMLDocument(currentUrl);
 
                 while (true) {
-
-
-                    boolean foundOldPostOnThisPage = false;
 
                     List<BoardPost> postsOnPage = scrapePostDetailFromBoard(currentDoc, pageList);
 
@@ -76,24 +65,21 @@ public class PostInfo {
                     }
 
                     for (BoardPost post : postsOnPage) {
-                        Timestamp timestamp = post.getpostDate();
-                        if (timestamp == null) {
+                        if (post == null || post.getpostDate() == null) {
                             continue;
                         }
                         if (seen.add(post)) {
                             allPosts.add(post);
                         }
-                        LocalDate postDate = timestamp.toLocalDateTime().toLocalDate();
-
-                        if (postDate.isBefore(startDate)) {
-                            foundOldPostOnThisPage = true;
-                        }
                     }
-
-                    if (foundOldPostOnThisPage) {
-                        System.out.println(startDate + " 이전 게시물을 포함한 페이지의 탐색을 완료했습니다. 이 게시판의 탐색을 중단합니다.");
+                        BoardPost lastPost = postsOnPage.get(postsOnPage.size() - 1);
+                        LocalDate lastPostDate = lastPost.getpostDate().toLocalDateTime().toLocalDate();
+                    if (lastPostDate.isBefore(startDate)) {
+                        System.out.printf(" - 페이지의 마지막 게시물('%s')이 %s 이전 글이므로 탐색을 중단합니다.%n",
+                                lastPost.getTitle(), startDate);
                         break;
                     }
+
 
                     // 다음 페이지로 이동하는 로직 (기존과 동일)
                     String combinedSelector=".paging a[title*='다음'], .page_list a[title*='다음'],.pager a[title*='다음'], a.pager.next:has(span:contains(다음)), a.pager.next, a:has(img[alt*='다음'])";
@@ -135,7 +121,7 @@ public class PostInfo {
 
 
     // ======================================================================
-    // 2. 오늘 올라온 게시물만 가져오는 필터링 메서드
+    // 2. 올라온 게시물만 가져오는 필터링 메서드
     // ======================================================================
     public List<BoardPost> getDailyPosts(List<BoardPage> pageList) throws IOException, URISyntaxException {
         Set<BoardPost> seen = new HashSet<>();
@@ -146,20 +132,25 @@ public class PostInfo {
         System.out.println(todayString + "일에 올라온 글을 확인합니다.");
 
         for (BoardPage page : pageList) {
-            System.out.println(">>> " + page.getTitle()  +"의 "+ page.getBoardName()+" 게시판의 모든 글을 탐색합니다..." +page.getAbsoluteUrl());
+            if ("자유게시판".equals(page.getBoardName()) || "학사공지".equals(page.getBoardName())){
+                continue;
+            }
             try {
+                System.out.println(">>> [오늘] " + page.getTitle()  +"의 "+ (page.getBoardName() != null ? page.getBoardName() : "(메인)")+" 게시판의 모든 글을 탐색합니다... " +page.getAbsoluteUrl());
                 String currentUrl = page.getAbsoluteUrl();
                 Document currentDoc = htmlFetcher.getHTMLDocument(currentUrl);
                 boolean stopCrawling = false;
 
                 while (!stopCrawling) {
                     List<BoardPost> postsOnPage = scrapePostDetailFromBoard(currentDoc, pageList);
-
-                    stopCrawling = true;
+                    if (postsOnPage.isEmpty()) {
+                        System.out.println(" - 페이지에 더 이상 게시물이 없어 탐색을 종료합니다.");
+                        break; // 이 페이지에 글 없음, 페이징 중단
+                    }
+                    boolean foundTodayPostOnThisPage = false;
 
                     for (BoardPost post : postsOnPage) {
                         Timestamp timestamp = post.getpostDate();
-
                         if (timestamp == null) {
                             continue;
                         }
@@ -170,8 +161,9 @@ public class PostInfo {
                             if (seen.add(post)) {
                                 dailyPosts.add(post);
                             }
-                            stopCrawling = false;
+                            foundTodayPostOnThisPage = true;
                         } else if (postDate.isBefore(today)) {
+                            // 어제 날짜 글을 만나면 중단
                             stopCrawling = true;
                             break;
                         }
@@ -180,10 +172,15 @@ public class PostInfo {
                     if (stopCrawling) {
                         break;
                     }
+                    if (!foundTodayPostOnThisPage) {
+                        System.out.println(" - 이 페이지에 오늘 날짜의 글이 없어 탐색을 중단합니다.");
+                        break;
+                    }
 
                     String combinedSelector=".paging a[title*='다음'], .page_list a[title*='다음'],.pager a[title*='다음']";
                     Element nextElement = currentDoc.selectFirst(combinedSelector);
                     if (nextElement == null) {
+                        System.out.println(" - 마지막 페이지입니다. 이 게시판의 탐색을 종료합니다.");
                         break;
                     }
 
@@ -226,7 +223,7 @@ public class PostInfo {
                 String posttitle ="";
                 String postauthor = "";
                 String postdate = "";
-                String hits = "";
+                Integer hitInt = 0;
 
 
                 if (postlink.contains("library")){
@@ -276,11 +273,8 @@ public class PostInfo {
                     if (hitsElement != null) {
                         String hitsText = hitsElement.text().trim();
                         String[] parts = hitsText.split(":", 2);
-                        if (parts.length > 1) {
-                            hits = parts[1].trim();
-                        } else {
-                            hits = parts[0];
-                        }
+                        String hitsStr = (parts.length > 1) ? parts[1].trim() : parts[0];
+                        hitInt = safelyParseInt(hitsStr.replaceAll("[^0-9]", "")).orElse(0);
                     }
                 }else {
                     // --- 게시물의 공통 정보를 안전하게 가져옵니다. ---
@@ -313,13 +307,16 @@ public class PostInfo {
 
                     //  조회수
 
-                    int hitInt = parseHits(postDoc, posthitsSelector);
-
-                    hits = String.valueOf(hitInt);
-
+                    hitInt = parseHits(postDoc, posthitsSelector);
                 }
 
                 String content = postDoc.select(".board_contents > div.sch_link_target").html();
+
+                if (content != null) {
+                    content = content.replaceAll("((?i)<br ?/?>\\s*){2,}", "<br>");
+                } else {
+                    content = "";
+                }
 
                 String postdepartment = "중앙도서관";
                 Category category = Category.UNIVERSITY; // 기본값 설정
@@ -369,12 +366,6 @@ public class PostInfo {
                                 }
                             }
                         }
-
-
-
-
-
-
                     } catch (URISyntaxException e) {
                         System.err.println("오류: department를 찾는 중 URL 구문 분석 실패: " + postlink);
                     }
@@ -385,16 +376,19 @@ public class PostInfo {
 
                     continue;
                 }
-                // Timestamp를 LocalDateTime으로 변환합니다.
-                LocalDateTime localDateTime = Timestamp.from(Instant.now()).toLocalDateTime();
-
-                // (1-1) LocalTime 객체로 시간 정보만 추출하기
-                LocalTime localTime = localDateTime.toLocalTime();
-
-                // (1-2) 원하는 형식의 시간 문자열로 추출하기 (HH:mm:ss)
-                DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
-                String formattedTime = localDateTime.format(timeFormatter);
-                Timestamp created_at = Timestamp.valueOf(postdate + " " +formattedTime);
+                Timestamp created_at;
+                try {
+                    LocalDate parsedDate = parseToLocalDate(postdate);
+                    if(parsedDate == null) {
+                        throw new DateTimeParseException("파싱할 수 없는 날짜 형식", postdate, 0);
+                    }
+                    ZoneId koreaZoneId = ZoneId.of("Asia/Seoul");
+                    LocalTime timePart = LocalTime.now(koreaZoneId);
+                    created_at = Timestamp.valueOf(LocalDateTime.of(parsedDate, timePart));
+                } catch (Exception e) {
+                    System.err.println("경고: 날짜/시간 조합 실패로 현재 시간 사용: " + postdate + " (글: " + posttitle + ") - " + e.getMessage());
+                    created_at = new Timestamp(System.currentTimeMillis()); // 파싱 실패 시 현재 시간
+                }
 
                 Elements fileLinks = postDoc.select("a[href*='attach_no=']");
                 List<Attachment> attachments = new ArrayList<>();
@@ -403,13 +397,12 @@ public class PostInfo {
                     String attachmentName = link.text();
                     attachments.add(new Attachment(attachmentName, attachmentUrl));
                 }
-                postsOnPage.add(new BoardPost(postdepartment, posttitle, postauthor, created_at, hits, postlink, content, attachments,category));
-
+                postsOnPage.add(new BoardPost(postdepartment, posttitle, postauthor, created_at, hitInt, postlink, content, attachments,category, ""));
             } catch (Exception e) {
                 System.err.println("오류: 게시물 상세 페이지 처리 중 예외가 발생했습니다: " + e.getMessage() + " (URL: " + post + ")");
             }
         }
-            return postsOnPage;
+        return postsOnPage;
     }
     private int parseHits(Document doc, String posthitsSelector) {
         // 1. 첫 번째 CSS 선택자로 시도
