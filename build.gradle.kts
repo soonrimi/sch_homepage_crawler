@@ -23,6 +23,7 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     implementation("io.github.cdimascio:java-dotenv:5.2.2")
+    implementation("com.google.code.gson:gson:2.10.1")
 }
 
 tasks.jar {

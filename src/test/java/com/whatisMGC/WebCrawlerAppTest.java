@@ -116,16 +116,17 @@ public class WebCrawlerAppTest {
 //        }catch (RuntimeException e) {
 //            throw new RuntimeException(e);
 //        }
-        String postlink = "https://library.sch.ac.kr/bbs/list/1";
+        String postlink = "https://home.sch.ac.kr/sch/06/010100.jsp?mode=view&article_no=20250227145456180080&board_wrapper=%2Fsch%2F06%2F010100.jsp&pager.offset=640&board_no=20090723152156588979";
 
         String postdepartment = "";
         if (postlink.contains("library")){
             postdepartment = "library";
         }
         System.out.println(postdepartment);
-        Document currentDoc = htmlFetcher.getHTMLDocument(startUrl);
+        Document currentDoc = htmlFetcher.getHTMLDocument(postlink);
         Elements posts = currentDoc.select(".type_board > tbody > tr,.listTable tbody  tr");
         String combinedSelector = "td.subject a, td> a[href*='article_no='],li a[href*='board_no='], .listTable tr td a, td.title a";
+        String postContentSelector = ".board_contents > div.sch_link_target, .board_contents";
 
 
         for (Element post : posts) {
@@ -146,9 +147,54 @@ public class WebCrawlerAppTest {
 //            System.out.println(ptext);
 //            String htext=post.selectFirst(posthitsSelector).text().trim();
 //            System.out.println(htext);
+
         }
+        Elements contentImageElements = currentDoc.select(postContentSelector);
+        if (contentImageElements != null) {
 
+            // 2. 그 안의 모든 <p> 태그를 리스트로 가져옵니다.
+            Elements paragraphs = contentImageElements.select("p");
 
+            StringBuilder contentBuilder = new StringBuilder();
+
+            // 3. 각 <p> 태그를 순회합니다.
+            for (Element p : paragraphs) {
+
+                // 4. <p> 태그 *내부의* 텍스트만 추출합니다.
+                // 이 .text() 호출이 <span>, <o:p> 등을 모두 무시하고
+                // "순천향대학교 BK21 FOUR..." 같은 순수 텍스트만 뽑아냅니다.
+                String line = p.text();
+
+                // 5. 추출한 텍스트 한 줄을 추가하고, 줄바꿈(newline) 문자를 더합니다.
+                // <p></p>나 <p>&nbsp;</p> 같은 빈 줄도
+                // .text()는 빈 문자열이나 공백을 반환하므로, 자연스럽게 빈 줄로 처리됩니다.
+                contentBuilder.append(line).append("\n");
+            }
+
+            // 6. div 안의 hwpEditorBoardContent나 마지막 <p><br></p> 등
+            // 불필요한 태그는 <p>가 아니므로 이 로직에서 자동으로 무시됩니다.
+
+            String finalContent = contentBuilder.toString();
+            System.out.println(finalContent);
+        }
+//        List<String> contentImages = new ArrayList<>();
+//        if (contentImageElements.contains("img")) {
+//            System.out.println(contentImageElements.text().contains("img"));
+//            for (Element img : contentImageElements) {
+//                String ImageUrl= img.attr("abs:href");
+//                contentImages.add(ImageUrl);
+//            }
+//        }
+//        System.out.println(contentImageElements);
+//
+//        System.out.println(contentImages);
+//        String imgurl="";
+//        Elements contentElement = currentDoc.select(postContentSelector);
+//        for (Element content : contentElement) {
+//            Element imgTag = content.selectFirst("img");
+//            imgurl=imgTag.attr("abs:src");
+//            System.out.println("이미지 URL: " + imgurl);
+//        }
 
 
     }
