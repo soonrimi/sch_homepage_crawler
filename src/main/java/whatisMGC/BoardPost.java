@@ -13,12 +13,13 @@ public class BoardPost {
     private Integer hits;
     private String absoluteUrl;
     private String content;
+    private List<String> contentImageUrls;
     private List<Attachment> attachments;
     private Category category;
     private String contentHash;
 
     // 생성자
-    public BoardPost(String department, String title, String author, Timestamp postDate, Integer hits, String absoluteUrl, String content, List<Attachment> attachments, Category category, String contentHash) {
+    public BoardPost(String department, String title, String author, Timestamp postDate, Integer hits, String absoluteUrl, String content, List<String> contentImageUrls, List<Attachment> attachments, Category category, String contentHash) {
         this.department = department;
         this.title = title;
         this.author = author;
@@ -26,6 +27,7 @@ public class BoardPost {
         this.hits = hits;
         this.absoluteUrl = absoluteUrl;
         this.content = content;
+        this.contentImageUrls = contentImageUrls;
         this.attachments = attachments;
         this.category = category;
         this.contentHash = contentHash;
@@ -95,5 +97,13 @@ public class BoardPost {
 
     public void setContentHash(String contentHash) {
         this.contentHash = contentHash;
+    }
+
+    public List<String> getContentImageUrls() {
+        return contentImageUrls;
+    }
+
+    public void setContentImageUrls(List<String> contentImageUrls) {
+        this.contentImageUrls = contentImageUrls;
     }
 }

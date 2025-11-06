@@ -9,12 +9,13 @@ import java.security.MessageDigest;
 import java.sql.*;
 import java.util.*;
 import java.util.stream.Collectors;
+import com.google.gson.Gson;
 
 public class DBManager {
     private static final String DB_URL;
     private static final String DB_USER;
     private static final String DB_PASS;
-
+    private static final Gson gson = new Gson();
     static {
         DB_URL = DBConfig.DB_URL;
         DB_USER = DBConfig.DB_USER;
@@ -48,6 +49,7 @@ public class DBManager {
             addMissingColumn(conn, "notice", "view_count", "INT(11) DEFAULT NULL");
             addMissingColumn(conn, "notice", "content_hash", "VARCHAR(64) DEFAULT NULL");
 
+
             // --- 3. attachment (변경 없음) ---
             executeCreateTable(conn, "attachment", getAttachmentDdl());
             addMissingColumn(conn, "attachment", "attachment_type", "VARCHAR(31) NOT NULL");
@@ -70,6 +72,7 @@ public class DBManager {
             // --- 5. crawl_posts  ---
             executeCreateTable(conn, "crawl_posts", getCrawlPostsDdl());
             addMissingColumn(conn, "crawl_posts", "external_source_url", "VARCHAR(255) DEFAULT NULL");
+            addMissingColumn(conn, "crawl_posts", "content_images", "JSON DEFAULT NULL");
             addMissingColumn(conn, "crawl_posts", "source", "VARCHAR(255) DEFAULT NULL");
             addMissingColumn(conn, "crawl_posts", "writer", "VARCHAR(255) DEFAULT NULL");
             addMissingColumn(conn, "crawl_posts", "id", "BIGINT(20) NOT NULL PRIMARY KEY");
@@ -221,6 +224,7 @@ public class DBManager {
                 "    external_source_url VARCHAR(255) DEFAULT NULL, " +
                 "    source VARCHAR(255) DEFAULT NULL, " +
                 "    writer VARCHAR(255) DEFAULT NULL, " +
+                "    content_images JSON DEFAULT NULL, " +
                 "    id BIGINT(20) NOT NULL, " +
                 "    PRIMARY KEY (id), " +
                 "    UNIQUE KEY uk_crawl_posts_external_source_url (external_source_url), " +
@@ -357,12 +361,26 @@ public class DBManager {
     // --- 게시물 저장/업데이트 로직 ---
 
     private String calculateContentHash(String content) {
+        return calculateContentHash(content, null);
+    }
+    private String calculateContentHash(String content, List<String> imageUrls) {
         if (content == null) {
             content = "";
         }
+
+        String imageUrlsString = "";
+        if (imageUrls != null && !imageUrls.isEmpty()) {
+            List<String> sortedImageUrls = new ArrayList<>(imageUrls);
+            Collections.sort(sortedImageUrls);
+            imageUrlsString = String.join("||", sortedImageUrls);
+        }
+
+        String combinedContent = content + "||IMAGES:" + imageUrlsString;
+
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(content.getBytes(StandardCharsets.UTF_8));
+            byte[] hashBytes = digest.digest(combinedContent.getBytes(StandardCharsets.UTF_8));
+
             StringBuilder hexString = new StringBuilder(2 * hashBytes.length);
             for (byte b : hashBytes) {
                 String hex = Integer.toHexString(0xff & b);
@@ -372,6 +390,7 @@ public class DBManager {
                 hexString.append(hex);
             }
             return hexString.toString();
+
         } catch (Exception e) {
             System.err.println("해시 계산 중 오류 발생: " + e.getMessage());
             return null;
@@ -387,8 +406,8 @@ public class DBManager {
         final String noticeSql = "INSERT INTO notice (notice_type, category, content, created_at, title, view_count, content_hash) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
-        final String crawlPostsSql = "INSERT INTO crawl_posts (external_source_url, source, writer, id) " +
-                "VALUES (?, ?, ?, ?)";
+        final String crawlPostsSql = "INSERT INTO crawl_posts (external_source_url, source, writer, id, content_images) " +
+                "VALUES (?, ?, ?, ?, ?)";
 
         final String attachmentParentSql = "INSERT INTO attachment (attachment_type, file_name, file_url, notice_id) " +
                 "VALUES (?, ?, ?, ?)";
@@ -443,6 +462,8 @@ public class DBManager {
             crawlPostsPstmt.setString(2, post.getDepartment());
             crawlPostsPstmt.setString(3, post.getAuthor());
             crawlPostsPstmt.setLong(4, noticeId);
+            String imageUrlsJson = gson.toJson(post.getContentImageUrls());
+            crawlPostsPstmt.setString(5, imageUrlsJson);
 
             crawlPostsPstmt.executeUpdate();
         }
@@ -485,13 +506,56 @@ public class DBManager {
             }
         }
     }
+    private void insertAttachments(Connection conn, long noticeId, List<Attachment> attachments) throws SQLException {
+        final String attachmentParentSql = "INSERT INTO attachment (attachment_type, file_name, file_url, notice_id) " +
+                "VALUES (?, ?, ?, ?)";
+        final String attachmentChildSql = "INSERT INTO crawl_attachment (id, crawl_posts_id) " +
+                "VALUES (?, ?)";
 
+        if (attachments == null || attachments.isEmpty()) {
+            return;
+        }
+
+        long attachmentId;
+        try (PreparedStatement attachmentParentPstmt = conn.prepareStatement(attachmentParentSql, Statement.RETURN_GENERATED_KEYS);
+             PreparedStatement attachmentChildPstmt = conn.prepareStatement(attachmentChildSql)) {
+
+            for (Attachment attachmentData : attachments) {
+                String fileUrl = attachmentData.getFileUrl();
+                if (fileUrl != null && fileUrl.length() > 2048) {
+                    fileUrl = fileUrl.substring(0, 2048);
+                }
+
+                // 1. attachment 테이블 삽입 (부모)
+                attachmentParentPstmt.setString(1, "CRAWL");
+                attachmentParentPstmt.setString(2, attachmentData.getFileName());
+                attachmentParentPstmt.setString(3, fileUrl);
+                attachmentParentPstmt.setLong(4, noticeId);
+                attachmentParentPstmt.executeUpdate();
+
+                try (ResultSet rs = attachmentParentPstmt.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        attachmentId = rs.getLong(1);
+                    } else {
+                        throw new SQLException("attachment ID 생성 실패: " + attachmentData.getFileName());
+                    }
+                }
+
+                // 2. crawl_attachment 테이블 삽입 (자식)
+                attachmentChildPstmt.setLong(1, attachmentId);
+                attachmentChildPstmt.setLong(2, noticeId);
+                attachmentChildPstmt.addBatch();
+            }
+            attachmentChildPstmt.executeBatch();
+        }
+    }
     private void updateExistingPost(Connection conn, long existingNoticeId, BoardPost post, String newHash) throws SQLException {
         final String noticeUpdateSql = "UPDATE notice SET notice_type = ?, category = ?, content = ?, created_at = ?, title = ?, view_count = ?, content_hash = ? WHERE id = ?";
-        final String crawlPostUpdateSql = "UPDATE crawl_posts SET external_source_url = ?, source = ?, writer = ? WHERE id = ?";
-
-        final String findOldAttachmentsSql = "SELECT id FROM crawl_attachment WHERE crawl_posts_id = ?";
-        final String deleteCrawlAttachmentSql = "DELETE FROM crawl_attachment WHERE crawl_posts_id = ?";
+        final String crawlPostUpdateSql = "UPDATE crawl_posts SET external_source_url = ?, source = ?, writer = ?, content_images = ? WHERE id = ?";
+        final String findOldAttachmentsSql = "SELECT a.id, a.file_url FROM attachment a " +
+                "JOIN crawl_attachment ca ON a.id = ca.id " +
+                "WHERE ca.crawl_posts_id = ?";
+        final String deleteCrawlAttachmentSql = "DELETE FROM crawl_attachment WHERE id IN (?)";
         final String deleteAttachmentSql = "DELETE FROM attachment WHERE id IN (?)";
 
         final String attachmentParentSql = "INSERT INTO attachment (attachment_type, file_name, file_url, notice_id) " +
@@ -536,69 +600,56 @@ public class DBManager {
             crawlPostUpdatePstmt.setString(1, externalUrl);
             crawlPostUpdatePstmt.setString(2, post.getDepartment());
             crawlPostUpdatePstmt.setString(3, post.getAuthor());
-            crawlPostUpdatePstmt.setLong(4, existingNoticeId);
+            String imageUrlsJson = gson.toJson(post.getContentImageUrls());
+            crawlPostUpdatePstmt.setString(4, imageUrlsJson);
+            crawlPostUpdatePstmt.setLong(5, existingNoticeId);
 
             crawlPostUpdatePstmt.executeUpdate();
         }
 
         // 3. 기존 첨부파일 ID 조회 및 삭제
-        List<Long> oldAttachmentIds = new ArrayList<>();
+        Map<String, Long> oldUrlToIdMap = new HashMap<>();
         try(PreparedStatement findPstmt = conn.prepareStatement(findOldAttachmentsSql)) {
             findPstmt.setLong(1, existingNoticeId);
             try(ResultSet rs = findPstmt.executeQuery()) {
-                while(rs.next()) oldAttachmentIds.add(rs.getLong("id"));
-            }
-        }
-
-        if (!oldAttachmentIds.isEmpty()) {
-            // 3-1. crawl_attachment (자식) 레코드 먼저 삭제
-            try (PreparedStatement delCrawlAttPstmt = conn.prepareStatement(deleteCrawlAttachmentSql)) {
-                delCrawlAttPstmt.setLong(1, existingNoticeId);
-                delCrawlAttPstmt.executeUpdate();
-            }
-
-            // 3-2. attachment (부모) 레코드 삭제
-            String idPlaceholders = oldAttachmentIds.stream().map(String::valueOf).collect(Collectors.joining(","));
-            String deleteAttachmentSqlIn = "DELETE FROM attachment WHERE id IN (" + idPlaceholders + ")";
-            try (Statement stmt = conn.createStatement()) {
-                stmt.executeUpdate(deleteAttachmentSqlIn);
-            }
-        }
-
-        // 4. 새 첨부파일 삽입 로직
-        if (post.getAttachments() != null && !post.getAttachments().isEmpty()) {
-            long attachmentId;
-            try (PreparedStatement attachmentParentPstmt = conn.prepareStatement(attachmentParentSql, Statement.RETURN_GENERATED_KEYS);
-                 PreparedStatement attachmentChildPstmt = conn.prepareStatement(attachmentChildSql)) {
-
-                for (Attachment attachmentData : post.getAttachments()) {
-
-                    String fileUrl = attachmentData.getFileUrl();
-                    if (fileUrl != null && fileUrl.length() > 2048) {
-                        fileUrl = fileUrl.substring(0, 2048);
-                    }
-
-                    attachmentParentPstmt.setString(1, "CRAWL");
-                    attachmentParentPstmt.setString(2, attachmentData.getFileName());
-                    attachmentParentPstmt.setString(3, fileUrl);
-                    attachmentParentPstmt.setLong(4, existingNoticeId);
-                    attachmentParentPstmt.executeUpdate();
-
-                    try (ResultSet rs = attachmentParentPstmt.getGeneratedKeys()) {
-                        if (rs.next()) {
-                            attachmentId = rs.getLong(1);
-                        } else {
-                            throw new SQLException("attachment ID 생성 실패: " + attachmentData.getFileName());
-                        }
-                    }
-
-                    attachmentChildPstmt.setLong(1, attachmentId);
-                    attachmentChildPstmt.setLong(2, existingNoticeId);
-                    attachmentChildPstmt.addBatch();
+                while(rs.next()) {
+                    oldUrlToIdMap.put(rs.getString("file_url"), rs.getLong("id"));
                 }
-                attachmentChildPstmt.executeBatch();
             }
         }
+
+        List<Attachment> newAttachments = post.getAttachments() != null ? post.getAttachments() : Collections.emptyList();
+        List<Attachment> attachmentsToAdd = new ArrayList<>();
+
+        // 3-2. 새 목록과 비교
+        for (Attachment newAtt : newAttachments) {
+            String newFileUrl = newAtt.getFileUrl();
+            if (newFileUrl != null && newFileUrl.length() > 2048) {
+                newFileUrl = newFileUrl.substring(0, 2048);
+            }
+
+            if (oldUrlToIdMap.containsKey(newFileUrl)) {
+                oldUrlToIdMap.remove(newFileUrl);
+            } else {
+                attachmentsToAdd.add(newAtt);
+            }
+        }
+
+        List<Long> idsToDelete = new ArrayList<>(oldUrlToIdMap.values());
+        if (!idsToDelete.isEmpty()) {
+            String idPlaceholders = idsToDelete.stream().map(String::valueOf).collect(Collectors.joining(","));
+
+            try (Statement stmt = conn.createStatement()) {
+                stmt.executeUpdate("DELETE FROM crawl_attachment WHERE id IN (" + idPlaceholders + ")");
+            }
+
+            try (Statement stmt = conn.createStatement()) {
+                stmt.executeUpdate("DELETE FROM attachment WHERE id IN (" + idPlaceholders + ")");
+            }
+        }
+
+        insertAttachments(conn, existingNoticeId, attachmentsToAdd);
+
     }
 
 
@@ -631,7 +682,7 @@ public class DBManager {
             if (post == null || post.getTitle() == null) continue;
             // if (post == null || post.getTitle() == null || post.getAuthor() == null || post.getCategory() == null) continue; //
 
-            String newHash = calculateContentHash(post.getContent());
+            String newHash = calculateContentHash(post.getContent(), post.getContentImageUrls());
             if (newHash == null) {
                 System.err.println("해시 계산 실패로 건너뜀: " + post.getTitle());
                 continue;
@@ -673,7 +724,8 @@ public class DBManager {
         String findSql = "SELECT n.id, n.title, n.content_hash " + // [수정] cp.writer, n.category 제거
                 "FROM notice n " +
                 // "JOIN crawl_posts cp ON n.id = cp.id " + // [주석]
-                "WHERE n.title IN (" + createPlaceholders(titlesToCheck.size()) + ")";
+                "WHERE n.title IN (" + createPlaceholders(titlesToCheck.size()) + ")" +
+                "AND n.notice_type = 'CRAWL'";
         //        +"AND cp.writer IN (" + createPlaceholders(authorsToCheck.size()) + ") " + // [주석]
         //        "AND n.category IN (" + createPlaceholders(categoriesToCheck.size()) + ")"; // [주석]
 
