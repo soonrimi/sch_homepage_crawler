@@ -220,10 +220,13 @@ public class PostInfo {
                 String authorSelector="ul > li:contains(작성자), [class*=\"writer\"],  td.writer, .writer";
                 String postDateSelector= "ul > li:contains(등록일), [class*=\"postdate\"], td.date, td.reportDate, .date";
                 String posthitsSelector="ul > li:contains(조회),  td.hits a, td.view_cnt, .hits";
+                String postContentSelector = ".board_contents";
                 String posttitle ="";
                 String postauthor = "";
                 String postdate = "";
                 Integer hitInt = 0;
+                String content = "";
+
 
 
                 if (postlink.contains("library")){
@@ -308,14 +311,34 @@ public class PostInfo {
                     //  조회수
 
                     hitInt = parseHits(postDoc, posthitsSelector);
+
                 }
 
-                String content = postDoc.select(".board_contents > div.sch_link_target").html();
 
-                if (content != null) {
-                    content = content.replaceAll("((?i)<br ?/?>\\s*){2,}", "<br>");
-                } else {
-                    content = "";
+                //게시물, 게시물 내 이미지
+                Element contentArea = postDoc.selectFirst(postContentSelector);
+                List<String> contentImageUrls = new ArrayList<>();
+
+                if (contentArea != null) {
+                    Elements imgTags = contentArea.select("img");
+                    for (Element imgTag : imgTags) {
+                        contentImageUrls.add(imgTag.attr("abs:src"));
+                    }
+
+                    Element brBasedContent = contentArea.selectFirst(".sch_link_target");
+
+                    if (brBasedContent != null) {
+                        brBasedContent.select("br").forEach(br -> br.after("\n"));
+                        content = brBasedContent.text();
+                    } else {
+                        Elements paragraphs = contentArea.select("p");
+                        StringBuilder contentBuilder = new StringBuilder();
+                        for (Element p : paragraphs) {
+                            String line = p.text();
+                            contentBuilder.append(line).append("\n");
+                        }
+                        content = contentBuilder.toString();
+                    }
                 }
 
                 String postdepartment = "중앙도서관";
@@ -397,7 +420,7 @@ public class PostInfo {
                     String attachmentName = link.text();
                     attachments.add(new Attachment(attachmentName, attachmentUrl));
                 }
-                postsOnPage.add(new BoardPost(postdepartment, posttitle, postauthor, created_at, hitInt, postlink, content, attachments,category, ""));
+                postsOnPage.add(new BoardPost(postdepartment, posttitle, postauthor, created_at, hitInt, postlink, content, contentImageUrls ,attachments,category, ""));
             } catch (Exception e) {
                 System.err.println("오류: 게시물 상세 페이지 처리 중 예외가 발생했습니다: " + e.getMessage() + " (URL: " + post + ")");
             }
