@@ -325,20 +325,22 @@ public class PostInfo {
                         contentImageUrls.add(imgTag.attr("abs:src"));
                     }
 
-                    Element brBasedContent = contentArea.selectFirst(".sch_link_target");
-
-                    if (brBasedContent != null) {
-                        brBasedContent.select("br").forEach(br -> br.after("\n"));
-                        content = brBasedContent.text();
-                    } else {
-                        Elements paragraphs = contentArea.select("p");
-                        StringBuilder contentBuilder = new StringBuilder();
-                        for (Element p : paragraphs) {
-                            String line = p.text();
-                            contentBuilder.append(line).append("\n");
-                        }
-                        content = contentBuilder.toString();
+                    Element targetContent = contentArea.selectFirst(".sch_link_target");
+                    if (targetContent == null) {
+                        targetContent = contentArea;
                     }
+
+                    targetContent.select("br").append("\\n");
+                    targetContent.select("p").prepend("\\n");
+                    targetContent.select("div").prepend("\\n");
+                    targetContent.select("li").prepend("- ").append("\\n");
+                    targetContent.select("tr").append("\\n");
+                    String rawText = targetContent.text();
+
+                    content = rawText
+                            .replaceAll("\\\\n", "\n")
+                            .replaceAll("\n{3,}", "\n\n")
+                            .trim();
                 }
 
                 String postdepartment = "중앙도서관";
