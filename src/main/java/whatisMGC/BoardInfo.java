@@ -25,7 +25,8 @@ public class BoardInfo {
     public List<BoardPage> getAllPages(Document doc) {
         // 1. 공지사항 및 학과, 센터 링크들을 Jsoup 셀렉터로 모두 가져와 하나의 리스트로 합칩니다.
         List<BoardPage> allPages = new ArrayList<>();
-        allPages.addAll(extractBoardInfo(".sub_6 > div:nth-child(2) > div:nth-child(1) > ul:nth-child(2) > li > a", doc));
+        allPages.addAll(
+                extractBoardInfo(".sub_6 > div:nth-child(2) > div:nth-child(1) > ul:nth-child(2) > li > a", doc));
         allPages.addAll(extractBoardInfo(".type_02 > ul:nth-child(2) > li > a", doc));
         allPages.addAll(extractBoardInfo(".type_01 ul li > a", doc));
 
@@ -33,7 +34,8 @@ public class BoardInfo {
 
         // 2. 제외 대상 필터링
         List<BoardPage> filteredList = allPages.stream()
-                .filter(page -> config.excludedPages != null && config.excludedPages.stream().noneMatch(name -> page.getTitle().contains(name)))
+                .filter(page -> config.excludedPages != null
+                        && config.excludedPages.stream().noneMatch(name -> page.getTitle().contains(name)))
                 .filter(page -> !page.getAbsoluteUrl().contains("?"))
                 .collect(Collectors.toList());
 
@@ -41,12 +43,14 @@ public class BoardInfo {
         List<BoardPage> subpageList = filteredList.stream()
                 .map(page -> {
                     String category = "학과"; // 기본 카테고리
-                    if (config.centerNames != null && config.centerNames.stream().anyMatch(name -> page.getTitle().contains(name))) {
+                    if (config.centerNames != null
+                            && config.centerNames.stream().anyMatch(name -> page.getTitle().contains(name))) {
                         category = "센터";
-                    } else if (config.announceNames != null && config.announceNames.stream().anyMatch(name -> page.getTitle().contains(name))) {
+                    } else if (config.announceNames != null
+                            && config.announceNames.stream().anyMatch(name -> page.getTitle().contains(name))) {
                         category = "공지사항";
                     }
-                    
+
                     // URL 오버라이드 룰 로드
                     if (config.subpageUrlOverrides != null) {
                         for (BoardConfig.SubpageUrlOverride override : config.subpageUrlOverrides) {
@@ -67,12 +71,13 @@ public class BoardInfo {
     // ----------------------------------------------------------------------
     /**
      * 특정 페이지(학과/카테고리 메인)에서 소게시판 링크를 찾아 BoardPage 객체로 반환합니다.
+     * 
      * @return 소게시판 목록이 담긴 BoardPage 객체 리스트
      */
     // ----------------------------------------------------------------------
     public List<BoardPage> findSubBoardsOnPage(Document parentDoc, BoardPage parentPage) {
         BoardConfig config = BoardConfig.getInstance();
-        
+
         String combinedSelector = DEFAULT_SUBBOARD_SELECTOR;
         if (config.customSelectors != null) {
             combinedSelector = config.customSelectors.entrySet().stream()
@@ -94,11 +99,11 @@ public class BoardInfo {
                 continue;
             }
 
-            if(boardName.contains("더보기")){
+            if (boardName.contains("더보기")) {
                 continue;
-            }else if(boardName.contains("-")){
-                boardName=boardName.split(" ")[1];
-            }else if (subBoardUrl.contains("#")) {
+            } else if (boardName.contains("-")) {
+                boardName = boardName.split(" ")[1];
+            } else if (subBoardUrl.contains("#")) {
                 continue;
             }
             if (!subBoardUrl.isEmpty()) {
