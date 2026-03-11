@@ -384,7 +384,57 @@ public class DBManager {
     }
 
 
+    // --- 공통 헬퍼 메서드: notice 테이블 파라미터 바인딩 ---
+    private void bindNoticeParams(PreparedStatement pstmt, BoardPost post, String hash, long idStrOptional) throws SQLException {
+        String title = (post.getTitle() != null && post.getTitle().length() > 255) 
+                ? post.getTitle().substring(0, 255) 
+                : post.getTitle();
+                
+        String contentValue = post.getContent() != null ? post.getContent() : "";
+        Timestamp createdAtValue = post.getpostDate();
+        if (createdAtValue == null) {
+            throw new SQLException("PostInfo가 날짜 파싱에 실패 (created_at is null) Post: " + title);
+        }
+
+        pstmt.setString(1, "CRAWL"); // notice_type
+        pstmt.setString(2, post.getCategory()); 
+        pstmt.setString(3, contentValue);
+        pstmt.setTimestamp(4, createdAtValue);
+        pstmt.setString(5, title);
+        pstmt.setInt(6, post.getHits());
+        pstmt.setString(7, hash); // content_hash
+        
+        // update용 id 파라미터가 0 이상일 경우 설정
+        if (idStrOptional > 0) {
+            pstmt.setLong(8, idStrOptional);
+        }
+    }
+
+    // --- 공통 헬퍼 메서드: crawl_posts 테이블 파라미터 바인딩 ---
+    private void bindCrawlPostParams(PreparedStatement pstmt, BoardPost post, long noticeId, boolean isUpdate) throws SQLException {
+        String externalUrl = post.getAbsoluteUrl();
+        if (externalUrl != null && externalUrl.length() > 2048) {
+            externalUrl = externalUrl.substring(0, 2048);
+        }
+
+        pstmt.setString(1, externalUrl);
+        pstmt.setString(2, post.getDepartment());
+        pstmt.setString(3, post.getAuthor());
+
+        String imageUrlsJson = gson.toJson(post.getContentImageUrls());
+        if (isUpdate) {
+            // UPDATE: external_source_url = ?, source = ?, writer = ?, content_images = ? WHERE id = ?
+            pstmt.setString(4, imageUrlsJson);
+            pstmt.setLong(5, noticeId);
+        } else {
+            // INSERT: external_source_url, source, writer, id, content_images
+            pstmt.setLong(4, noticeId);
+            pstmt.setString(5, imageUrlsJson);
+        }
+    }
+
     /**
+     * 신규 크롤링 게시물 데이터베이스 삽입
      * 트랜잭션 관리를 상위 메서드(saveOrUpdatePostsInBulk)로 위임
      */
     private void insertNewPost(Connection conn, BoardPost post, String newHash) throws SQLException {
@@ -394,34 +444,11 @@ public class DBManager {
         final String crawlPostsSql = "INSERT INTO crawl_posts (external_source_url, source, writer, id, content_images) " +
                 "VALUES (?, ?, ?, ?, ?)";
 
-        final String attachmentSql = "INSERT INTO attachment (attachment_type, file_name, file_url, notice_id) " +
-                "VALUES (?, ?, ?, ?)";
-
         long noticeId;
 
-        // 1. notice 테이블 삽입
+        // 1. notice 테이블 데이터 삽입 및 ID 반환
         try (PreparedStatement noticePstmt = conn.prepareStatement(noticeSql, Statement.RETURN_GENERATED_KEYS)) {
-            String title = post.getTitle();
-            if (title != null && title.length() > 255) {
-                title = title.substring(0, 255);
-            }
-            String contentValue = post.getContent() != null ? post.getContent() : "";
-            Timestamp createdAtValue = post.getpostDate();
-            if (createdAtValue == null) {
-                throw new SQLException("PostInfo가 날짜 파싱에 실패 (created_at is null) Post: " + title);
-            }
-            int viewCountValue = post.getHits();
-            String categoryValue = post.getCategory();
-            String noticeType = "CRAWL";
-
-            noticePstmt.setString(1, noticeType);
-            noticePstmt.setString(2, categoryValue);
-            noticePstmt.setString(3, contentValue);
-            noticePstmt.setTimestamp(4, createdAtValue);
-            noticePstmt.setString(5, title);
-            noticePstmt.setInt(6, viewCountValue);
-            noticePstmt.setString(7, newHash);
-
+            bindNoticeParams(noticePstmt, post, newHash, -1);
             noticePstmt.executeUpdate();
 
             try (ResultSet rs = noticePstmt.getGeneratedKeys()) {
@@ -433,43 +460,17 @@ public class DBManager {
             }
         }
 
-        // 2. crawl_posts 삽입
+        // 2. crawl_posts 테이블 하위 데이터 삽입
         try (PreparedStatement crawlPostsPstmt = conn.prepareStatement(crawlPostsSql)) {
-            String externalUrl = post.getAbsoluteUrl();
-            if (externalUrl != null && externalUrl.length() > 2048) {
-                externalUrl = externalUrl.substring(0, 2048);
-            }
-
-            crawlPostsPstmt.setString(1, externalUrl);
-            crawlPostsPstmt.setString(2, post.getDepartment());
-            crawlPostsPstmt.setString(3, post.getAuthor());
-            crawlPostsPstmt.setLong(4, noticeId);
-            String imageUrlsJson = gson.toJson(post.getContentImageUrls());
-            crawlPostsPstmt.setString(5, imageUrlsJson);
-
+            bindCrawlPostParams(crawlPostsPstmt, post, noticeId, false);
             crawlPostsPstmt.executeUpdate();
         }
 
-        if (post.getAttachments() != null && !post.getAttachments().isEmpty()) {
-            try (PreparedStatement attachmentPstmt = conn.prepareStatement(attachmentSql)) {
-                for (Attachment attachmentData : post.getAttachments()) {
-                    String fileUrl = attachmentData.getFileUrl();
-                    if (fileUrl != null && fileUrl.length() > 2048) {
-                        fileUrl = fileUrl.substring(0, 2048);
-                    }
-
-                    attachmentPstmt.setString(1, "CRAWL");
-                    attachmentPstmt.setString(2, attachmentData.getFileName());
-                    attachmentPstmt.setString(3, fileUrl);
-                    attachmentPstmt.setLong(4, noticeId);
-                    attachmentPstmt.addBatch();
-                }
-                attachmentPstmt.executeBatch();
-            }
-        }
+        // 3. 첨부파일 삽입
+        insertAttachments(conn, noticeId, post.getAttachments());
     }
 
-    // 첨부파일만 별도로 삽입하는 헬퍼 메서드 (수정됨)
+    // 첨부파일 일괄 삽입 헬퍼 메서드
     private void insertAttachments(Connection conn, long noticeId, List<Attachment> attachments) throws SQLException {
         final String attachmentSql = "INSERT INTO attachment (attachment_type, file_name, file_url, notice_id) " +
                 "VALUES (?, ?, ?, ?)";
@@ -495,57 +496,25 @@ public class DBManager {
         }
     }
 
+    // 기존 게시물 최신 정보 대상 업데이트
     private void updateExistingPost(Connection conn, long existingNoticeId, BoardPost post, String newHash) throws SQLException {
         final String noticeUpdateSql = "UPDATE notice SET notice_type = ?, category = ?, content = ?, created_at = ?, title = ?, view_count = ?, content_hash = ? WHERE id = ?";
-
         final String crawlPostUpdateSql = "UPDATE crawl_posts SET external_source_url = ?, source = ?, writer = ?, content_images = ? WHERE id = ?";
-
         final String findOldAttachmentsSql = "SELECT id, file_url FROM attachment WHERE notice_id = ?";
 
-        final String deleteAttachmentSql = "DELETE FROM attachment WHERE id IN (?)";
-
+        // 1. notice 테이블 업데이트
         try (PreparedStatement noticeUpdatePstmt = conn.prepareStatement(noticeUpdateSql)) {
-            String title = post.getTitle();
-            if (title != null && title.length() > 255) {
-                title = title.substring(0, 255);
-            }
-            String contentValue = post.getContent() != null ? post.getContent() : "";
-            Timestamp createdAtValue = post.getpostDate();
-            if (createdAtValue == null) {
-                throw new SQLException("PostInfo가 날짜 파싱에 실패 (created_at is null) Post: " + title);
-            }
-            int viewCountValue = post.getHits();
-            String categoryValue = post.getCategory();
-            String noticeType = "CRAWL";
-
-            noticeUpdatePstmt.setString(1, noticeType);
-            noticeUpdatePstmt.setString(2, categoryValue);
-            noticeUpdatePstmt.setString(3, contentValue);
-            noticeUpdatePstmt.setTimestamp(4, createdAtValue);
-            noticeUpdatePstmt.setString(5, title);
-            noticeUpdatePstmt.setInt(6, viewCountValue);
-            noticeUpdatePstmt.setString(7, newHash);
-            noticeUpdatePstmt.setLong(8, existingNoticeId);
-
+            bindNoticeParams(noticeUpdatePstmt, post, newHash, existingNoticeId);
             noticeUpdatePstmt.executeUpdate();
         }
 
+        // 2. crawl_posts 테이블 업데이트
         try (PreparedStatement crawlPostUpdatePstmt = conn.prepareStatement(crawlPostUpdateSql)) {
-            String externalUrl = post.getAbsoluteUrl();
-            if (externalUrl != null && externalUrl.length() > 2048) {
-                externalUrl = externalUrl.substring(0, 2048);
-            }
-
-            crawlPostUpdatePstmt.setString(1, externalUrl);
-            crawlPostUpdatePstmt.setString(2, post.getDepartment());
-            crawlPostUpdatePstmt.setString(3, post.getAuthor());
-            String imageUrlsJson = gson.toJson(post.getContentImageUrls());
-            crawlPostUpdatePstmt.setString(4, imageUrlsJson);
-            crawlPostUpdatePstmt.setLong(5, existingNoticeId);
-
+            bindCrawlPostParams(crawlPostUpdatePstmt, post, existingNoticeId, true);
             crawlPostUpdatePstmt.executeUpdate();
         }
 
+        // 3. 첨부파일 변경 사항 반영 (기존 파일 URL 조회 후 신규 추가 항목 색출)
         Map<String, Long> oldUrlToIdMap = new HashMap<>();
         try(PreparedStatement findPstmt = conn.prepareStatement(findOldAttachmentsSql)) {
             findPstmt.setLong(1, existingNoticeId);
@@ -560,18 +529,20 @@ public class DBManager {
         List<Attachment> attachmentsToAdd = new ArrayList<>();
 
         for (Attachment newAtt : newAttachments) {
-            String newFileUrl = newAtt.getFileUrl();
-            if (newFileUrl != null && newFileUrl.length() > 2048) {
-                newFileUrl = newFileUrl.substring(0, 2048);
-            }
+            String newFileUrl = newAtt.getFileUrl() != null && newAtt.getFileUrl().length() > 2048 
+                    ? newAtt.getFileUrl().substring(0, 2048) 
+                    : newAtt.getFileUrl();
 
             if (oldUrlToIdMap.containsKey(newFileUrl)) {
+                // 기존에 이미 존재하는 파일 (유지)
                 oldUrlToIdMap.remove(newFileUrl);
             } else {
+                // 새롭게 추가된 첨부파일
                 attachmentsToAdd.add(newAtt);
             }
         }
 
+        // 삭제 처리 (게시물에서 없어진 기존 파일)
         List<Long> idsToDelete = new ArrayList<>(oldUrlToIdMap.values());
         if (!idsToDelete.isEmpty()) {
             String idPlaceholders = idsToDelete.stream().map(String::valueOf).collect(Collectors.joining(","));
@@ -581,6 +552,7 @@ public class DBManager {
             }
         }
 
+        // 추가 처리 
         insertAttachments(conn, existingNoticeId, attachmentsToAdd);
     }
 
@@ -597,6 +569,7 @@ public class DBManager {
         }
     }
 
+    // 신규/업데이트 일괄 동기화 (Bulk Synchronization)
     public void saveOrUpdatePostsInBulk(List<BoardPost> newPosts) {
         if (newPosts == null || newPosts.isEmpty()) {
             System.out.println("처리할 게시물이 없습니다.");
@@ -604,15 +577,15 @@ public class DBManager {
         }
 
         // --- 1. 데이터 준비 (메모리) ---
-        Map<String, BoardPost> postsToProcess = new HashMap<>(); // key: 복합 키
+        Map<String, BoardPost> postsToProcess = new HashMap<>(); // key: URL
         Map<BoardPost, String> postHashMap = new HashMap<>(); // key: BoardPost
         Set<String> urlsToCheck = new HashSet<>();
+        Set<String> hashesToCheck = new HashSet<>();
 
         System.out.println("1. 크롤링된 게시물 " + newPosts.size() + "건 해시 계산 및 키 생성 시작...");
         for (BoardPost post : newPosts) {
-            //  title만 null 체크
+            // 정보가 누락된 게시물 필터링
             if (post == null || post.getTitle() == null || post.getAbsoluteUrl() == null) continue;
-            // if (post == null || post.getTitle() == null || post.getAuthor() == null || post.getCategory() == null) continue; //
 
             String newHash = post.getContentHash();
             if (newHash == null) {
@@ -633,14 +606,13 @@ public class DBManager {
             //  continue;
             // } // [주석]
 
-            // [수정] 키를 title로만 사용
             String urlKey = post.getAbsoluteUrl();
-            // String compositeKey = post.getTitle() + "||" + post.getAuthor() + "||" + post.getCategory(); //
 
             if (!postsToProcess.containsKey(urlKey)) {
                 postsToProcess.put(urlKey, post);
                 postHashMap.put(post, newHash);
                 urlsToCheck.add(urlKey);
+                hashesToCheck.add(newHash);
             }
         }
 
@@ -651,12 +623,14 @@ public class DBManager {
         System.out.println(" - 유효한 키 " + postsToProcess.size() + "건 확인."); // [수정] "복합 키" -> "키"
 
         // --- 2. 기존 데이터 한번에 조회 (DB 쿼리 딱 1번) ---
-        Map<String, ExistingPostData> existingPostsMap = new HashMap<>(); // <CompositeKey, ExistingPostData(id, hash)>
+        Map<String, ExistingPostData> existingPostsByUrl = new HashMap<>(); // <Url, ExistingPostData>
+        Set<String> existingTitleHashes = new HashSet<>(); // <title||hash>
 
         String findSql = "SELECT n.id, n.title, n.content_hash, cp.external_source_url " +
                 "FROM notice n " +
                 "JOIN crawl_posts cp ON n.id = cp.id " +
-                "WHERE cp.external_source_url IN (" + createPlaceholders(urlsToCheck.size()) + ")";
+                "WHERE cp.external_source_url IN (" + createPlaceholders(urlsToCheck.size()) + ") " +
+                "OR n.content_hash IN (" + createPlaceholders(hashesToCheck.size()) + ")";
 
         Connection conn = null;
         boolean success = false;
@@ -671,35 +645,38 @@ public class DBManager {
                 for (String url : urlsToCheck) {
                     findPstmt.setString(i++, url);
                 }
+                for (String hash : hashesToCheck) {
+                    findPstmt.setString(i++, hash);
+                }
                 try (ResultSet rs = findPstmt.executeQuery()) {
                     while (rs.next()) {
                         String dbUrl = rs.getString("external_source_url");
-                        existingPostsMap.put(
-                                dbUrl,
-                                new ExistingPostData(
-                                        rs.getLong("id"),
-                                        rs.getString("content_hash"),
-                                        rs.getString("title") // DB에 저장된 제목 가져오기
-                                )
-                        );
+                        String dbHash = rs.getString("content_hash");
+                        String dbTitle = rs.getString("title");
+                        long dbId = rs.getLong("id");
+                        
+                        existingPostsByUrl.put(dbUrl, new ExistingPostData(dbId, dbHash, dbTitle));
+                        existingTitleHashes.add(dbTitle + "||" + dbHash);
                     }
                 }
             }
-            System.out.println(" - 기존 게시물 " + existingPostsMap.size() + "건 정보 로드 완료.");
+            System.out.println(" - 기존 게시물 로드 완료 (URL 맵: " + existingPostsByUrl.size() + "건, Hash 맵: " + existingTitleHashes.size() + "건).");
 
 
             // --- 3. 비교 및 분류 ---
             List<BoardPost> postsToInsert = new ArrayList<>();
             List<Map.Entry<Long, BoardPost>> postsToUpdate = new ArrayList<>();
+            Set<String> insertedTitleHashesInThisBatch = new HashSet<>();
 
             for (Map.Entry<String, BoardPost> entry : postsToProcess.entrySet()) {
                 String urlKey = entry.getKey(); // URL
                 BoardPost post = entry.getValue();
                 String newHash = postHashMap.get(post);
+                String compositeKey = post.getTitle() + "||" + newHash;
 
-                if (existingPostsMap.containsKey(urlKey)) {
+                if (existingPostsByUrl.containsKey(urlKey)) {
                     // URL이 DB에 존재함 -> 기존 글임
-                    ExistingPostData existingData = existingPostsMap.get(urlKey);
+                    ExistingPostData existingData = existingPostsByUrl.get(urlKey);
 
                     // [판단 로직] 내용(해시)이 다르거나 OR 제목이 다르면 -> 업데이트 대상
                     boolean isContentChanged = !newHash.equals(existingData.contentHash);
@@ -708,9 +685,13 @@ public class DBManager {
                     if (isContentChanged || isTitleChanged) {
                         postsToUpdate.add(Map.entry(existingData.id, post));
                     }
+                } else if (existingTitleHashes.contains(compositeKey) || insertedTitleHashesInThisBatch.contains(compositeKey)) {
+                    // URL은 없지만 다른 게시판에 동일한 제목+내용이 이미 존재함 -> 무시
+                    System.out.println(" - 중복 게시판 글 발견 (건너뜀): " + post.getTitle());
                 } else {
-                    // URL이 DB에 없음 -> 진짜 새 글임
+                    // URL도 없고 해시도 DB에 없음 -> 진짜 새 글임
                     postsToInsert.add(post);
+                    insertedTitleHashesInThisBatch.add(compositeKey);
                 }
             }
             System.out.println(" - 신규: " + postsToInsert.size() + "건, 변경: " + postsToUpdate.size() + "건 분류 완료.");
